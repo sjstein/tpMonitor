@@ -43,24 +43,28 @@ accumulatedTime = 0  # Variable to hold how much time we have been running
 while True:
     f = open(sys.argv[1], 'a')
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(5) # Set timeout for no response from server
     s.connect((HOST, PORT))
     currentDT = datetime.datetime.now()
-    data = s.recv(1024)
-
-    # populate list with elements of pressure, temperature
-    elem = data.split(",")  # type: List[str]
-    depth = elem[2]
-    cDate = str(currentDT.strftime("%Y%m%d"))
-    cTime = str(currentDT.strftime("%H:%M:%S"))
-    dataLine = cDate + ' ' + cTime + ',' + str(data)
-    f.write(dataLine + '\n')
-    f.close()
-    s.close()
-    time.sleep(float(DELAY))
-    accumulatedTime = accumulatedTime + int(DELAY)
-    if accumulatedTime > int(RUNTIME) * 60:
-        print("Acquisition complete")
-        exit(0)
-    print("Server reports : " + data + " at " + cTime + "(" + cDate + ")")
-    print("Run time       : " + str(accumulatedTime) + " of " + str(int(RUNTIME) * 60) + " seconds")
-    print("Current depth  : " + depth + " meters\n")
+    try:
+        data = s.recv(1024)
+        # populate list with elements of pressure, temperature
+        elem = data.split(",")  # type: List[str]
+        depth = elem[2]
+        cDate = str(currentDT.strftime("%Y%m%d"))
+        cTime = str(currentDT.strftime("%H:%M:%S"))
+        dataLine = cDate + ' ' + cTime + ',' + str(data)
+        f.write(dataLine + '\n')
+    except socket.timeout:
+        print("ERR: Timeout waiting for server response")
+    finally:
+        f.close()
+        s.close()
+        time.sleep(float(DELAY))
+        accumulatedTime = accumulatedTime + int(DELAY)
+        if accumulatedTime > int(RUNTIME) * 60:
+            print("Acquisition complete")
+            exit(0)
+        print("Server reports : " + data + " at " + cTime + "(" + cDate + ")")
+        print("Run time       : " + str(accumulatedTime) + " of " + str(int(RUNTIME) * 60) + " seconds")
+        print("Current depth  : " + depth + " meters\n")
