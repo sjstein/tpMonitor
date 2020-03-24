@@ -1,5 +1,5 @@
 # tpMonitor.py
-(Written for Python 2)
+Python 3.8 / 2.7 compatible
 
 Python monitor script to connect to tpServer 
 
