@@ -18,12 +18,14 @@ curr_date = ''
 depth_meters = 0.0
 depth_feet = 0.0
 prog_name = '{' + sys.argv[0] + '}'
+verbosity = 2
 
 # Constants
-PORT = 5005 # TCP port for connection to server
-ERRO = 2    # Message types
+PORT = 5005  # TCP port for connection to server
+ERRO = 2  # Message types
 WARN = 1
 INFO = 0
+
 
 # Function to validate IPv4 address
 def valid_ip(ip_nbr):
@@ -45,20 +47,21 @@ def timestamp():
     curr_date = str(curr_date_time.strftime("%Y%m%d"))
     curr_time = str(curr_date_time.strftime("%H:%M:%S"))
     time_line = curr_date + ' ' + curr_time
-    return(time_line)
+    return (time_line)
 
 
 # Function to print message on console
 def console_message(msg: str, severity=3):
+    print("verbosity = " + str(verbosity))
     if severity == ERRO:
         print((timestamp() + " [ERRO] " + msg + " " + prog_name))
-    elif severity == WARN:
+    elif severity == WARN and verbosity > 0:
         print((timestamp() + " [WARN] " + msg + " " + prog_name))
-    elif severity == INFO:
+    elif severity == INFO and verbosity > 1:
         print((timestamp() + " [INFO] " + msg + " " + prog_name))
-    else:
+    elif verbosity > 1:
         print(msg)
-    return()
+    return ()
 
 
 # Set up argument parser
@@ -70,6 +73,7 @@ parser.add_argument("-f", "--freq", help="Frequency (in secs) to read data [defa
                     type=int)
 parser.add_argument("-t", "--time", help="Time (in mins) to run [default " + str(run_time) + " min ]. -1 denotes run\
  forever.", type=int)
+parser.add_argument("-v", "--verbosity", help="Verbosity level (0-2). [default = 2, most verbose].", type=int)
 
 # Read arguments passed on command line
 args = parser.parse_args()
@@ -83,13 +87,25 @@ if not (valid_ip(server_addr)):
 if args.log:  # Log filename - optional
     fname = args.log
     logging = True
-if args.freq:  # Read frequency - optional (default defined above)
+if args.freq != None:  # Read frequency - optional (default defined above)
     archive_freq = args.freq
     if archive_freq <= 0:
         console_message("Invalid collection frequency (--freq) (" + str(archive_freq) + "). Exiting.", ERRO)
         exit(-1)
-if args.time:  # Run duration - optional (default defined above)
+if args.time != None:  # Run duration - optional (default defined above)
     run_time = args.time
+    if run_time < 0:
+        console_message("Invalid run duration (--time) (" + str(run_time) + "). Exiting.", ERRO)
+        exit(-1)
+
+if args.verbosity != None:  # Verbosity level - option (default defined above)
+    verbosity = args.verbosity
+    print("found v parm = " + str(verbosity))
+    if verbosity <= 0:
+        verbosity = 0
+    elif verbosity >= 2:
+        verbosity = 2
+    print("requal v parm = " + str(verbosity))
 
 if logging:
     # Open the file and write the header
@@ -108,7 +124,7 @@ else:
     console_message("     Acquiring data for : " + str(run_time) + " minutes")
 curr_date_time = datetime.datetime.now()
 console_message("\n     Acquisition started : " + str(curr_date_time.strftime("%Y%m%d")) + " at " + \
-       str(curr_date_time.strftime("%H:%M:%S")) + "\n")
+                str(curr_date_time.strftime("%H:%M:%S")) + "\n")
 
 # Main loop
 while True:
@@ -122,7 +138,7 @@ while True:
         data = s.recv(1024)
         # populate list with elements of pressure, temperature
         elem = data.split(b',')  # type : List[str]
-        depth_meters= elem[2]
+        depth_meters = elem[2]
         depth_feet = float(depth_meters) * 3.28084
         curr_date = str(curr_date_time.strftime("%Y%m%d"))
         curr_time = str(curr_date_time.strftime("%H:%M:%S"))
