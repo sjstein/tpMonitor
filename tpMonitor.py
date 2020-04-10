@@ -52,7 +52,6 @@ def timestamp():
 
 # Function to print message on console
 def console_message(msg: str, severity=3):
-    print("verbosity = " + str(verbosity))
     if severity == ERRO:
         print((timestamp() + " [ERRO] " + msg + " " + prog_name))
     elif severity == WARN and verbosity > 0:
@@ -100,12 +99,10 @@ if args.time != None:  # Run duration - optional (default defined above)
 
 if args.verbosity != None:  # Verbosity level - option (default defined above)
     verbosity = args.verbosity
-    print("found v parm = " + str(verbosity))
     if verbosity <= 0:
         verbosity = 0
     elif verbosity >= 2:
         verbosity = 2
-    print("requal v parm = " + str(verbosity))
 
 if logging:
     # Open the file and write the header
@@ -164,8 +161,10 @@ while True:
             f.close()
             s.close()
             exit(0)
+
     except socket.timeout:
         console_message("Timeout waiting for server response.", WARN)
+
     except KeyboardInterrupt:
         if logging:
             f.close()
