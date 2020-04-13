@@ -158,8 +158,6 @@ while True:
         accum_time = accum_time + float(archive_freq)
         if (run_time > 0) & (accum_time > int(run_time) * 60):
             console_message("Acquisition complete.", INFO)
-            f.close()
-            s.close()
             exit(0)
 
     except socket.timeout:
