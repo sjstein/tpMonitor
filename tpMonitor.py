@@ -17,6 +17,8 @@ curr_time = ''
 curr_date = ''
 depth_meters = 0.0
 depth_feet = 0.0
+temp_c = 0.0
+temp_f = 0.0
 prog_name = '{' + sys.argv[0] + '}'
 verbosity = 2
 
@@ -35,23 +37,26 @@ def valid_ip(ip_nbr):
                 25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
                 25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)$'''
 
-    if (re.search(regex_ip, ip_nbr)):
-        return (1)  # IP address is properly formed
+    if re.search(regex_ip, ip_nbr):
+        return 1  # IP address is properly formed
     else:
-        return (0)  # IP address is malformed
+        return 0  # IP address is malformed
 
 
 # Function to return a timestamp string
 def timestamp():
-    curr_date_time = datetime.datetime.now()
-    curr_date = str(curr_date_time.strftime("%Y%m%d"))
-    curr_time = str(curr_date_time.strftime("%H:%M:%S"))
-    time_line = curr_date + ' ' + curr_time
-    return (time_line)
+    loc_date_time = datetime.datetime.now()
+    loc_curr_date = str(loc_date_time.strftime("%Y%m%d"))
+    loc_curr_time = str(loc_date_time.strftime("%H:%M:%S"))
+    loc_time_line = loc_curr_date + ' ' + loc_curr_time
+    return loc_time_line
 
 
 # Function to print message on console
-def console_message(msg: str, severity=3):
+def console_message(msg='', severity=3):
+    if not msg:  # To send a blank line to console, call function with no msg
+        print('')
+        return ()
     if severity == ERRO:
         print((timestamp() + " [ERRO] " + msg + " " + prog_name))
     elif severity == WARN and verbosity > 0:
@@ -79,25 +84,26 @@ args = parser.parse_args()
 fname = ''  # filename to log to
 
 # Parse command line arguments
-server_addr: str = args.serverIP  # Server IP  - not optional
+server_addr = args.serverIP  # Server IP  - not optional
+
 if not (valid_ip(server_addr)):
     console_message("IP address " + server_addr + " invalid. Exiting.", ERRO)
     exit(-1)
 if args.log:  # Log filename - optional
     fname = args.log
     logging = True
-if args.freq != None:  # Read frequency - optional (default defined above)
+if args.freq:  # Read frequency - optional (default defined above)
     archive_freq = args.freq
     if archive_freq <= 0:
         console_message("Invalid collection frequency (--freq) (" + str(archive_freq) + "). Exiting.", ERRO)
         exit(-1)
-if args.time != None:  # Run duration - optional (default defined above)
+if args.time:  # Run duration - optional (default defined above)
     run_time = args.time
     if run_time < 0:
         console_message("Invalid run duration (--time) (" + str(run_time) + "). Exiting.", ERRO)
         exit(-1)
 
-if args.verbosity != None:  # Verbosity level - option (default defined above)
+if args.verbosity:  # Verbosity level - option (default defined above)
     verbosity = args.verbosity
     if verbosity <= 0:
         verbosity = 0
@@ -135,6 +141,8 @@ while True:
         data = s.recv(1024)
         # populate list with elements of pressure, temperature
         elem = data.split(b',')  # type : List[str]
+        temp_c = elem[1]
+        temp_f = float(temp_c) * (9.0 / 5.0) + 32
         depth_meters = elem[2]
         depth_feet = float(depth_meters) * 3.28084
         curr_date = str(curr_date_time.strftime("%Y%m%d"))
@@ -144,13 +152,16 @@ while True:
 
         if logging:
             f.write(data_line + '\n')
-        console_message("Server reports : " + data.decode("utf-8"), INFO)
+#       console_message("Server reports : " + data.decode("utf-8"), INFO)
         if run_time <= 0:
             console_message("Run time       : " + str(accum_time) + " seconds", INFO)
         else:
             console_message("Run time       : " + str(accum_time) + " of " + str(int(run_time) * 60) + " seconds", INFO)
         console_message("Current depth  : " + "{0:.2f}".format(float(depth_meters)) + " meters (" + "{0:.2f}".format(
             depth_feet) + " ft)", INFO)
+        console_message("Current temp   : " + "{0:.2f}".format(float(temp_c)) + " deg C (" + "{0:.2f}".format(
+            temp_f) + " deg F)", INFO)
+        console_message('')  # Blank line
         if logging:
             f.close()
             s.close()
