@@ -101,27 +101,40 @@ while True:
     conn, addr = s.accept()
     echo_stat(f, "Client connected from IP: " + str(addr))
     while True:
-        try:
-            if sensor.read():
-                pres = sensor.pressure()  # mbar (no arguments)
-                temp = sensor.temperature()  # degrees C (no arguments)
-                dept = sensor.depth()  # Saltwater depth (m)
-                data = str(pres) + ',' + str(temp) + ',' + str(dept)
-                echo_stat(f, "Server sent: " + data)
-                conn.send(data.encode())
-                retry = 2  # Reset retry counter
-                break
-            else:
-                echo_stat(f, "I2C Sensor read failure, sending err(0),-1,-1 to client")
-                data = "-1,-1,-1"
-                conn.send(data.encode())
-                echo_stat(f, "Delaying " + str(retry) + " seconds before retry")
-                time.sleep(retry)
-                retry = retry + 1
-        except socket.error as msg:
-            echo_stat(f, "Client (" + str(addr) + "): connection closed")
-            conn.close()
+        data = conn.recv(256)
+        print(str(data,"utf-8"))
+        print(data[1:2])
+        if not data:
             break
+        if data[0:1] == b'r':  # read request
+            try:
+                if sensor.read():
+                    pres = sensor.pressure()  # mbar (no arguments)
+                    temp = sensor.temperature()  # degrees C (no arguments)
+                    dept = sensor.depth()  # Saltwater depth (m)
+                    data = str(pres) + ',' + str(temp) + ',' + str(dept)
+                    echo_stat(f, "Server sent: " + data)
+                    conn.send(data.encode())
+                    retry = 2  # Reset retry counter
+                    break
+                else:
+                    echo_stat(f, "I2C Sensor read failure, sending err(0),-1,-1 to client")
+                    data = "-1,-1,-1"
+                    conn.send(data.encode())
+                    echo_stat(f, "Delaying " + str(retry) + " seconds before retry")
+                    time.sleep(retry)
+                    retry = retry + 1
+            except socket.error as msg:
+                echo_stat(f, "Client (" + str(addr) + "): connection closed")
+                conn.close()
+                break
+        elif data[0:1] == b't':
+            timeStr = data[2:]
+            print('I need to set the time')
+            print(timeStr)
+            data = "0,0,0"
+            conn.send(data.encode())
+            # conn.close() # close server connection now
 
 # Below except clause will never be executed with python3; not sure about python2
 #        except IOError:
