@@ -28,6 +28,8 @@ PORT = 5005  # TCP port for connection to server
 ERRO = 2  # Message types
 WARN = 1
 INFO = 0
+MSG_READ_ALL = b'r all'
+MSG_DISCONNECT = b'discon'
 
 
 # Function to validate IPv4 address
@@ -131,15 +133,17 @@ curr_date_time = datetime.datetime.now()
 console_message("\n     Acquisition started : " + str(curr_date_time.strftime("%Y%m%d")) + " at " + \
                 str(curr_date_time.strftime("%H:%M:%S")) + "\n")
 
-# Main loop
+# Set up socket for messages
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(10)  # Set timeout for no response from server
+s.connect((server_addr, PORT))
+
+# Main Loop
 while True:
     try:
         if logging:
             f = open(fname, 'a')
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(5)  # Set timeout for no response from server
-        s.connect((server_addr, PORT))
-        s.sendall(b'r temp')
+        s.sendall(MSG_READ_ALL)
         curr_date_time = datetime.datetime.now()
         data = s.recv(1024)
         # populate list with elements of pressure, temperature
@@ -170,13 +174,17 @@ while True:
             s.close()
         if (run_time > 0) and (accum_time > int(run_time) * 60) or run_time == 0:
             console_message("Acquisition complete.", INFO)
+            s.sendall(MSG_DISCONNECT)
+            s.close()
             exit(0)
         time.sleep(float(archive_freq))
         accum_time = accum_time + float(archive_freq)
-        print("accum_time= " + str(accum_time))
 
     except socket.timeout:
         console_message("Timeout waiting for server response.", WARN)
+
+    except IndexError:
+        console_message("Malformed message from server : " + data.decode("utf-8"), WARN)
 
     except KeyboardInterrupt:
         if logging:
@@ -188,3 +196,4 @@ while True:
         else:
             console_message("Unexpected program termination via user interrupt.", WARN)
             exit(-1)
+

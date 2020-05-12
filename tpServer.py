@@ -9,6 +9,9 @@ import time
 from datetime import date
 from datetime import datetime
 
+MSG_READ_ALL = 'r all'
+MSG_DISCONNECT = 'discon'
+
 
 # Begin function definition 'get_ip_address(ifname)'
 #   A function to return the IP number bound to a specific ethernet interface (ifname)
@@ -27,7 +30,7 @@ def get_ip_address(ifname):  # Type: any
 # End function definition
 
 
-# Begin function definition 'statusOutput(fdesc, msg)
+# Begin function definition 'echo_stat(fdesc, msg)
 def echo_stat(fdesc, loc_msg):
     print(("[" + str(datetime.now()) + "] " + loc_msg))
     fdesc.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
@@ -83,7 +86,7 @@ echo_stat(f, "Initial Temperature: "
 
 freshwaterDepth = sensor.depth()  # default is freshwater
 sensor.setFluidDensity(ms5837.DENSITY_SALTWATER)
-saltwaterDepth = sensor.depth()  # No nead to read() again
+saltwaterDepth = sensor.depth()  # No need to read() again
 
 # NOTE: Leaving density set for saltwater as this is most common use case
 
@@ -96,11 +99,16 @@ echo_stat(f, "Initial Altitude: "
 
 time.sleep(5)
 
+echo_stat(f, "Awaiting client connection")
+conn, addr = s.accept()
+echo_stat(f, "Client connected from IP: " + str(addr))
+
 # Main loop
+
 while True:
-    conn, addr = s.accept()
-    echo_stat(f, "Client connected from IP: " + str(addr))
-    while True:
+    data = conn.recv(160)
+    if str(data.decode('utf-8')).startswith(MSG_READ_ALL):
+        echo_stat(f, "Read ALL requested from client : " + str(addr))
         try:
             if sensor.read():
                 pres = sensor.pressure()  # mbar (no arguments)
@@ -110,7 +118,7 @@ while True:
                 echo_stat(f, "Server sent: " + data)
                 conn.send(data.encode())
                 retry = 2  # Reset retry counter
-                break
+
             else:
                 echo_stat(f, "I2C Sensor read failure, sending err(0),-1,-1 to client")
                 data = "-1,-1,-1"
@@ -118,18 +126,31 @@ while True:
                 echo_stat(f, "Delaying " + str(retry) + " seconds before retry")
                 time.sleep(retry)
                 retry = retry + 1
+
         except socket.error as msg:
+            # This exception will cover various socket errors such as a broken pipe (client disconnect)
             echo_stat(f, "Client (" + str(addr) + "): connection closed")
             conn.close()
             break
 
-# Below except clause will never be executed with python3; not sure about python2
-#        except IOError:
-#            echo_stat(f, "I2C sensor IO error, sending err(1),-1,-1 to client")
-#            data = "-2,-1,-1"
-#            conn.send(data.encode())
-#            echo_stat(f, "Delaying " + str(retry) + " seconds before retry")
-#            time.sleep(retry)
-#            retry = retry + 1
-#            break
+    elif str(data.decode('utf-8')).startswith(MSG_DISCONNECT):
+        echo_stat(f, "DISCONNECT requested from client : " + str(addr))
+        conn.close()
+        echo_stat(f, "Client (" + str(addr) + "): connection closed")
+        echo_stat(f, "Awaiting client connection")
+        conn, addr = s.accept()
+        echo_stat(f, "Client connected from IP: " + str(addr))
+
+    else:
+        try:
+            echo_stat(f, "Unknown command sent from client : " + str(addr) + ' ' + data.decode('utf-8'))
+            response = 'CMD_UNKNOWN : ' + data.decode('utf-8')
+            echo_stat(f, "Server sent: " + response)
+            conn.send(response.encode())
+
+        except socket.error as msg:
+            # This exception will cover various socket errors such as a broken pipe (client disconnect)
+            echo_stat(f, "Client (" + str(addr) + "): connection closed")
+            conn.close()
+            break
 
