@@ -2,19 +2,14 @@
 
 import ms5837
 import socket
+import datetime
 import fcntl  # *nix only library - used to identify host ip#
 import struct
 import time
-
-from datetime import date
-from datetime import datetime
-
-MSG_READ_ALL = 'r all'
-MSG_DISCONNECT = 'discon'
+import threading
 
 
-# Begin function definition 'get_ip_address(ifname)'
-#   A function to return the IP number bound to a specific ethernet interface (ifname)
+# Function to return the IP number bound to a specific ethernet interface (ifname)
 def get_ip_address(ifname):  # Type: any
     error_count = 0
     while True:
@@ -26,19 +21,85 @@ def get_ip_address(ifname):  # Type: any
             time.sleep(1)
             error_count += 1
             if error_count > 60:
-                raise Exception("Unable to obtain ip# during tpServer start")
-# End function definition
+                raise Exception('Unable to obtain ip# during tpServer start')
 
 
-# Begin function definition 'echo_stat(fdesc, msg)
+# Function to return a timestamp string
+def timestamp():
+    loc_date_time = datetime.datetime.now()
+    loc_curr_date = str(loc_date_time.strftime('%Y%m%d'))
+    loc_curr_time = str(loc_date_time.strftime('%H:%M:%S'))
+    loc_time_line = loc_curr_date + ' ' + loc_curr_time
+    return loc_time_line
+
+
+# Function to write status messages to file and stdout
 def echo_stat(fdesc, loc_msg):
-    print(("[" + str(datetime.now()) + "] " + loc_msg))
-    fdesc.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
-# End function definition
+    print(timestamp() + ' ' + loc_msg)
+    fdesc.write(timestamp() + ' ' + loc_msg + '\n')
 
 
+# Client handler - meant to be threaded
+def threaded_client(conn, addr):
+    timeout = 2     # Counter for back-off / retry
+    tname = threading.current_thread().name
+    msg_head = '[' + str(tname) + '] '    # Create message header with thread ID
+    while True:
+        data = conn.recv(160)
+        if str(data.decode('utf-8')).startswith(MSG_READ_ALL):
+            echo_stat(f, msg_head + 'Read ALL requested from client : ' + str(addr))
+            try:
+                if sensor.read():
+                    pres = sensor.pressure()  # mbar (no arguments)
+                    temp = sensor.temperature()  # degrees C (no arguments)
+                    dept = sensor.depth()  # Saltwater depth (m)
+                    data = str(round(pres,3)) + ',' + str(round(temp,3)) + ',' + str(round(dept,3))
+                    echo_stat(f, msg_head + 'Server sent: ' + data)
+                    conn.send(data.encode())
+                    timeout = 2  # Reset retry counter
+
+                else:
+                    echo_stat(f, msg_head + 'I2C Sensor read failure, sending err(0),-1,-1 to client')
+                    data = '-1,-1,-1'
+                    conn.send(data.encode())
+                    echo_stat(f, msg_head + 'Delaying ' + str(timeout) + ' seconds before retry')
+                    time.sleep(timeout)
+                    timeout = timeout + 1
+
+            except socket.error as msg:
+                # This exception will cover various socket errors such as a broken pipe (client disconnect)
+                echo_stat(f, msg_head + 'Unexpected error, connection closed from client : ' + str(addr))
+                conn.close()
+                return -1
+
+        elif str(data.decode('utf-8')).startswith(MSG_DISCONNECT):
+            echo_stat(f, msg_head + 'DISCONNECT requested from client : ' + str(addr))
+            conn.close()
+            echo_stat(f, msg_head + 'Client ' + str(addr) + ' : connection closed')
+            return 1
+
+        else:
+            try:
+                echo_stat(f, msg_head + 'Unknown command received from client : ' + str(addr) + ' [' + \
+                          data.decode('utf-8') + ']')
+                response = 'CMD_UNKNOWN : ' + data.decode('utf-8')
+                conn.send(response.encode())
+
+            except socket.error as msg:
+                # This exception will cover various socket errors such as a broken pipe (client disconnect)
+                echo_stat(f, msg_head + 'Unexpected error, connection closed from client : ' + str(addr))
+                conn.close()
+                return -1
+
+
+# Main program begins
+
+MSG_READ_ALL = 'r all'
+MSG_DISCONNECT = 'discon'
 HOST = get_ip_address(b'eth0')  # Determine IP# on eth0
-PORT = 5005  # Server port
+PORT = 5005     # Server port
+MAXTID = 9999   # Maximum TID
+tid = 0         # Thread ID number
 
 # Open port to accept remote requests
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Type : str
@@ -48,12 +109,11 @@ s.listen(1)
 # Instantiate sensor using default I2C parameters
 sensor = ms5837.MS5837_30BA()  # Default I2C bus is 1 (Raspberry Pi 3)
 
-fname = str(date.today()) + "_tpServer.log"
+# Open logging file (append mode)
+fname = str(datetime.date.today()) + '_tpServer.log'
 f = open(fname, 'a')  # Open log file (append)
 
-echo_stat(f, "Server started")
-echo_stat(f, "Server IP# : " + HOST)
-echo_stat(f, "Server Port: " + str(PORT))
+echo_stat(f, '[SUP] Server started : ' + HOST + '(' + str(PORT) + ')')
 
 retry = 2  # Timer for retries
 
@@ -61,28 +121,28 @@ retry = 2  # Timer for retries
 while True:
     try:
         if sensor.init():
-            echo_stat(f, "I2C Sensor initialized")
+            echo_stat(f, '[SUP] I2C Sensor initialized')
             retry = 2  # Reset timer
             break
     except:
-        echo_stat(f, "Init sensor failed. Retrying after " + str(retry) + " Seconds")
+        echo_stat(f, '[SUP] Init sensor failed. Retrying after ' + str(retry) + ' Seconds')
         time.sleep(retry)
         retry = retry + 1
 
 # We have to read initial values from sensor to update pressure and temperature
 if not sensor.read():
-    echo_stat(f, "Initial sensor read failed - exiting")
+    echo_stat(f, '[SUP] Initial sensor read failed - exiting')
     exit(1)
 
-echo_stat(f, "Initial Pressure: "
-         + str(sensor.pressure(ms5837.UNITS_atm)) + " atm, "
-         + str(sensor.pressure(ms5837.UNITS_Torr)) + " Torr, "
-         + str(sensor.pressure(ms5837.UNITS_psi)) + " psi")
+echo_stat(f, '[SUP] Initial Pressure: '
+         + str(round(sensor.pressure(ms5837.UNITS_atm), 3)) + ' atm, '
+         + str(round(sensor.pressure(ms5837.UNITS_Torr), 3)) + ' Torr, '
+         + str(round(sensor.pressure(ms5837.UNITS_psi), 3)) + ' psi')
 
-echo_stat(f, "Initial Temperature: "
-         + str(sensor.temperature(ms5837.UNITS_Centigrade)) + " C, "
-         + str(sensor.temperature(ms5837.UNITS_Farenheit)) + " F, "
-         + str(sensor.temperature(ms5837.UNITS_Kelvin)) + " K")
+echo_stat(f, '[SUP] Initial Temperature: '
+         + str(round(sensor.temperature(ms5837.UNITS_Centigrade), 3)) + ' C, '
+         + str(round(sensor.temperature(ms5837.UNITS_Farenheit), 3)) + ' F, '
+         + str(round(sensor.temperature(ms5837.UNITS_Kelvin), 3)) + ' K')
 
 freshwaterDepth = sensor.depth()  # default is freshwater
 sensor.setFluidDensity(ms5837.DENSITY_SALTWATER)
@@ -90,67 +150,23 @@ saltwaterDepth = sensor.depth()  # No need to read() again
 
 # NOTE: Leaving density set for saltwater as this is most common use case
 
-echo_stat(f, "Initial Depth: "
-         + str(freshwaterDepth) + " m (freshwater), "
-         + str(saltwaterDepth) + " m (saltwater)")
+echo_stat(f, '[SUP] Initial Depth: '
+         + str(round(freshwaterDepth, 3)) + ' m (freshwater), '
+         + str(round(saltwaterDepth, 3)) + ' m (saltwater)')
 
-echo_stat(f, "Initial Altitude: "
-         + str(sensor.altitude()) + " m")
+echo_stat(f, '[SUP] Initial Altitude: '
+         + str(round(sensor.altitude(), 3)) + ' m')
 
 time.sleep(5)
 
-echo_stat(f, "Awaiting client connection")
-conn, addr = s.accept()
-echo_stat(f, "Client connected from IP: " + str(addr))
-
 # Main loop
-
 while True:
-    data = conn.recv(160)
-    if str(data.decode('utf-8')).startswith(MSG_READ_ALL):
-        echo_stat(f, "Read ALL requested from client : " + str(addr))
-        try:
-            if sensor.read():
-                pres = sensor.pressure()  # mbar (no arguments)
-                temp = sensor.temperature()  # degrees C (no arguments)
-                dept = sensor.depth()  # Saltwater depth (m)
-                data = str(pres) + ',' + str(temp) + ',' + str(dept)
-                echo_stat(f, "Server sent: " + data)
-                conn.send(data.encode())
-                retry = 2  # Reset retry counter
-
-            else:
-                echo_stat(f, "I2C Sensor read failure, sending err(0),-1,-1 to client")
-                data = "-1,-1,-1"
-                conn.send(data.encode())
-                echo_stat(f, "Delaying " + str(retry) + " seconds before retry")
-                time.sleep(retry)
-                retry = retry + 1
-
-        except socket.error as msg:
-            # This exception will cover various socket errors such as a broken pipe (client disconnect)
-            echo_stat(f, "Client (" + str(addr) + "): connection closed")
-            conn.close()
-            break
-
-    elif str(data.decode('utf-8')).startswith(MSG_DISCONNECT):
-        echo_stat(f, "DISCONNECT requested from client : " + str(addr))
-        conn.close()
-        echo_stat(f, "Client (" + str(addr) + "): connection closed")
-        echo_stat(f, "Awaiting client connection")
-        conn, addr = s.accept()
-        echo_stat(f, "Client connected from IP: " + str(addr))
-
-    else:
-        try:
-            echo_stat(f, "Unknown command sent from client : " + str(addr) + ' ' + data.decode('utf-8'))
-            response = 'CMD_UNKNOWN : ' + data.decode('utf-8')
-            echo_stat(f, "Server sent: " + response)
-            conn.send(response.encode())
-
-        except socket.error as msg:
-            # This exception will cover various socket errors such as a broken pipe (client disconnect)
-            echo_stat(f, "Client (" + str(addr) + "): connection closed")
-            conn.close()
-            break
-
+    echo_stat(f, '[SUP] waiting for client connection...')
+    connection, address = s.accept()     # Wait for connection request from client
+    echo_stat(f, '[SUP] Connection accepted from : ' + str(address))
+    t = threading.Thread(target=threaded_client, args=(connection, address),name='TID#' + str(tid))
+    t.start()
+    tid = tid + 1
+    if tid > MAXTID:
+        tid = 0
+    echo_stat(f, '[SUP] Current number of client threads : {0}'.format(str(threading.activeCount() - 1)))

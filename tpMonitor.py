@@ -172,7 +172,7 @@ while True:
         if logging:
             f.close()
             s.close()
-        if (run_time > 0) and (accum_time > int(run_time) * 60) or run_time == 0:
+        if (run_time > 0) and (accum_time >= int(run_time) * 60) or run_time == 0:
             console_message("Acquisition complete.", INFO)
             s.sendall(MSG_DISCONNECT)
             s.close()
