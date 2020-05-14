@@ -34,7 +34,7 @@ UNITS_Farenheit  = 2
 UNITS_Kelvin     = 3
 
 
-class MockMS5837_30BA:
+class MS5837_30BA:
     """
     This class exposes the same methods as the MS5837_30BA, but returns
     random 'reasonable' synthetic data instead of hardware sensor data.
