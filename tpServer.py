@@ -45,7 +45,17 @@ def threaded_client(conn, addr):
     tname = threading.current_thread().name
     msg_head = '[' + str(tname) + '] '    # Create message header with thread ID
     while True:
-        data = conn.recv(160)
+        try:
+            data = conn.recv(160)
+
+        except OSError as msg:
+            # This exception will cover various socket errors such as a broken pipe (client disconnect)
+            echo_stat(f, msg_head + 'Unexpected error (' + str(msg) + ') connection closed from client : ' +
+                      str(addr))
+            conn.close()
+            return -1
+
+
         if str(data.decode('utf-8')).startswith(MSG_READ_ALL):
             echo_stat(f, msg_head + 'Read ALL requested from client : ' + str(addr))
             try:
@@ -66,9 +76,9 @@ def threaded_client(conn, addr):
                     time.sleep(timeout)
                     timeout = timeout + 1
 
-            except socket.error as msg:
+            except OSError as msg:
                 # This exception will cover various socket errors such as a broken pipe (client disconnect)
-                echo_stat(f, msg_head + 'Unexpected error, connection closed from client : ' + str(addr))
+                echo_stat(f, msg_head + 'Unexpected error (' + str(msg) + ') connection closed from client : ' + str(addr))
                 conn.close()
                 return -1
 
@@ -85,9 +95,10 @@ def threaded_client(conn, addr):
                 response = 'CMD_UNKNOWN : ' + data.decode('utf-8')
                 conn.send(response.encode())
 
-            except socket.error as msg:
+            except OSError as msg:
                 # This exception will cover various socket errors such as a broken pipe (client disconnect)
-                echo_stat(f, msg_head + 'Unexpected error, connection closed from client : ' + str(addr))
+                echo_stat(f, msg_head + 'Unexpected error (' + str(msg) + ') connection closed from client : ' +
+                          str(addr))
                 conn.close()
                 return -1
 
