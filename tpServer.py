@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-DEBUG = True
 
 # Built-in packages:
 from argparse import ArgumentParser
@@ -19,9 +18,9 @@ args = parser.parse_args()
 
 # Installed packages:
 if args.debug:
-    print('*** WARNING ***')
+    print('    *** WARNING ***     ')
     print('Operating in DEBUG mode!')
-    print('USING MOCK SENSOR DATA')
+    print(' USING MOCK SENSOR DATA ')
     import mock_ms5837 as ms5837
 else:
     import ms5837
