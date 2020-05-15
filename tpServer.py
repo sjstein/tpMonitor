@@ -1,13 +1,29 @@
 #!/usr/bin/python3
 
-import ms5837
-import socket
+# Built-in packages:
+from argparse import ArgumentParser
+from datetime import date
+from datetime import datetime
 import fcntl  # *nix only library - used to identify host ip#
+import socket
 import struct
 import time
 
-from datetime import date
-from datetime import datetime
+
+parser = ArgumentParser()
+parser.add_argument('--debug',
+                    action='store_true',
+                    help='When set, use synthetic data')
+args = parser.parse_args()
+
+# Installed packages:
+if args.debug:
+    print('    *** WARNING ***     ')
+    print('Operating in DEBUG mode!')
+    print(' USING MOCK SENSOR DATA ')
+    import mock_ms5837 as ms5837
+else:
+    import ms5837
 
 MSG_READ_ALL = 'r all'
 MSG_DISCONNECT = 'discon'
