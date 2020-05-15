@@ -7,16 +7,25 @@ from datetime import datetime
 import fcntl  # *nix only library - used to identify host ip#
 import socket
 import struct
+import sys
 import time
+
+# Project-locals:
+from utilities import get_interface_devices, timestamp
 
 
 parser = ArgumentParser()
 parser.add_argument('--debug',
                     action='store_true',
                     help='When set, use synthetic data')
+parser.add_argument('-i',
+                    '--interface',
+                    default='eth0',
+                    dest='interface',
+                    help='Interface device name to use')
 args = parser.parse_args()
 
-# Installed packages:
+# Conditionally import mock or hardware sensor module:
 if args.debug:
     print('    *** WARNING ***     ')
     print('Operating in DEBUG mode!')
@@ -29,23 +38,6 @@ MSG_READ_ALL = 'r all'
 MSG_DISCONNECT = 'discon'
 
 
-# Begin function definition 'get_ip_address(ifname)'
-#   A function to return the IP number bound to a specific ethernet interface (ifname)
-def get_ip_address(ifname):  # Type: any
-    error_count = 0
-    while True:
-        try:
-            loc_s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            return socket.inet_ntoa(fcntl.ioctl(loc_s.fileno(), 0x8915, struct.pack(b'256s', ifname[:15]))[20:24])
-
-        except:
-            time.sleep(1)
-            error_count += 1
-            if error_count > 60:
-                raise Exception("Unable to obtain ip# during tpServer start")
-# End function definition
-
-
 # Begin function definition 'echo_stat(fdesc, msg)
 def echo_stat(fdesc, loc_msg):
     print(("[" + str(datetime.now()) + "] " + loc_msg))
@@ -53,7 +45,19 @@ def echo_stat(fdesc, loc_msg):
 # End function definition
 
 
-HOST = get_ip_address(b'eth0')  # Determine IP# on eth0
+# Retrieve all interface device infos:
+interface_info = get_interface_devices()
+
+# If the command line arg device is not found, error out:
+HOST = interface_info.get(args.interface)
+if HOST is None:
+    print(f'{timestamp()} [ERRO] Device {args.interface} not found.')
+    print(f'{timestamp()} [ERRO] Available interfaces:')
+    for interface, address in interface_info.items():
+        print(f'{timestamp()} [ERRO]\t{interface} : {address}')
+    print(f'{timestamp()} [ERRO] kthxbyee')
+    sys.exit(-1)
+
 PORT = 5005  # Server port
 
 # Open port to accept remote requests
