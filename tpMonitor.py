@@ -5,6 +5,10 @@ import time
 import re
 import sys
 
+
+from utilities import timestamp
+
+
 # Variable declaration section
 archive_freq = 5    # Default archive frequency in seconds
 run_time = 60       # Default run time in minutes
@@ -44,15 +48,6 @@ def valid_ip(ip_nbr):
         return 1  # IP address is properly formed
     else:
         return 0  # IP address is malformed
-
-
-# Function to return a timestamp string
-def timestamp():
-    loc_date_time = datetime.datetime.now()
-    loc_curr_date = str(loc_date_time.strftime("%Y%m%d"))
-    loc_curr_time = str(loc_date_time.strftime("%H:%M:%S"))
-    loc_time_line = loc_curr_date + ' ' + loc_curr_time
-    return loc_time_line
 
 
 # Function to print message on console
