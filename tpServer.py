@@ -7,6 +7,7 @@ from datetime import datetime
 import fcntl  # *nix only library - used to identify host ip#
 import socket
 import struct
+import threading
 import time
 
 
@@ -17,7 +18,7 @@ parser.add_argument('--debug',
 args = parser.parse_args()
 
 # Installed packages:
-if args.debug:
+if args.debug is not None:
     print('    *** WARNING ***     ')
     print('Operating in DEBUG mode!')
     print(' USING MOCK SENSOR DATA ')
@@ -43,7 +44,7 @@ def get_ip_address(ifname):  # Type: any
 
 # Function to return a timestamp string
 def timestamp():
-    loc_date_time = datetime.datetime.now()
+    loc_date_time = datetime.now()
     loc_curr_date = str(loc_date_time.strftime('%Y%m%d'))
     loc_curr_time = str(loc_date_time.strftime('%H:%M:%S'))
     loc_time_line = loc_curr_date + ' ' + loc_curr_time
@@ -71,7 +72,6 @@ def threaded_client(conn, addr):
                       str(addr))
             conn.close()
             return -1
-
 
         if str(data.decode('utf-8')).startswith(MSG_READ_ALL):
             echo_stat(f, msg_head + 'Read ALL requested from client : ' + str(addr))
@@ -138,7 +138,7 @@ s.listen(1)
 sensor = ms5837.MS5837_30BA()  # Default I2C bus is 1 (Raspberry Pi 3)
 
 # Open logging file (append mode)
-fname = str(datetime.date.today()) + '_tpServer.log'
+fname = str(date.today()) + '_tpServer.log'
 f = open(fname, 'a')  # Open log file (append)
 
 echo_stat(f, '[SUP] Server started : ' + HOST + '(' + str(PORT) + ')')
