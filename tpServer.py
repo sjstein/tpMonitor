@@ -11,7 +11,8 @@ import sys
 import time
 
 # Project-locals:
-from utilities import get_interface_devices, timestamp
+from utilities import get_interface_devices, timestamp, console_message
+from utilities import INFO, WARN, ERRO
 
 
 parser = ArgumentParser()
@@ -39,8 +40,9 @@ MSG_DISCONNECT = 'discon'
 
 
 # Begin function definition 'echo_stat(fdesc, msg)
-def echo_stat(fdesc, loc_msg):
-    print(("[" + str(datetime.now()) + "] " + loc_msg))
+def echo_stat(fdesc, loc_msg, severity=3):
+    console_message(loc_msg, severity,)
+ #   print(("[" + str(datetime.now()) + "] " + loc_msg))
     fdesc.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
 # End function definition
 
@@ -71,9 +73,9 @@ sensor = ms5837.MS5837_30BA()  # Default I2C bus is 1 (Raspberry Pi 3)
 fname = str(date.today()) + "_tpServer.log"
 f = open(fname, 'a')  # Open log file (append)
 
-echo_stat(f, "Server started")
-echo_stat(f, "Server IP# : " + HOST)
-echo_stat(f, "Server Port: " + str(PORT))
+echo_stat(f, "Server started", INFO)
+echo_stat(f, "Server IP# : " + HOST, INFO)
+echo_stat(f, "Server Port: " + str(PORT), INFO)
 
 retry = 2  # Timer for retries
 
@@ -81,28 +83,28 @@ retry = 2  # Timer for retries
 while True:
     try:
         if sensor.init():
-            echo_stat(f, "I2C Sensor initialized")
+            echo_stat(f, "I2C Sensor initialized", INFO)
             retry = 2  # Reset timer
             break
     except:
-        echo_stat(f, "Init sensor failed. Retrying after " + str(retry) + " Seconds")
+        echo_stat(f, "Init sensor failed. Retrying after " + str(retry) + " Seconds", WARN)
         time.sleep(retry)
         retry = retry + 1
 
 # We have to read initial values from sensor to update pressure and temperature
 if not sensor.read():
-    echo_stat(f, "Initial sensor read failed - exiting")
+    echo_stat(f, "Initial sensor read failed - exiting", ERRO)
     exit(1)
 
 echo_stat(f, "Initial Pressure: "
          + str(sensor.pressure(ms5837.UNITS_atm)) + " atm, "
          + str(sensor.pressure(ms5837.UNITS_Torr)) + " Torr, "
-         + str(sensor.pressure(ms5837.UNITS_psi)) + " psi")
+         + str(sensor.pressure(ms5837.UNITS_psi)) + " psi", INFO)
 
 echo_stat(f, "Initial Temperature: "
          + str(sensor.temperature(ms5837.UNITS_Centigrade)) + " C, "
          + str(sensor.temperature(ms5837.UNITS_Farenheit)) + " F, "
-         + str(sensor.temperature(ms5837.UNITS_Kelvin)) + " K")
+         + str(sensor.temperature(ms5837.UNITS_Kelvin)) + " K", INFO)
 
 freshwaterDepth = sensor.depth()  # default is freshwater
 sensor.setFluidDensity(ms5837.DENSITY_SALTWATER)
@@ -112,65 +114,64 @@ saltwaterDepth = sensor.depth()  # No need to read() again
 
 echo_stat(f, "Initial Depth: "
          + str(freshwaterDepth) + " m (freshwater), "
-         + str(saltwaterDepth) + " m (saltwater)")
+         + str(saltwaterDepth) + " m (saltwater)", INFO)
 
 echo_stat(f, "Initial Altitude: "
-         + str(sensor.altitude()) + " m")
+         + str(sensor.altitude()) + " m", INFO)
 
 time.sleep(5)
 
-echo_stat(f, "Awaiting client connection")
+echo_stat(f, "Awaiting client connection", INFO)
 conn, addr = s.accept()
-echo_stat(f, "Client connected from IP: " + str(addr))
+echo_stat(f, "Client connected from IP: " + str(addr), INFO)
 
 # Main loop
 
 while True:
     data = conn.recv(160)
     if str(data.decode('utf-8')).startswith(MSG_READ_ALL):
-        echo_stat(f, "Read ALL requested from client : " + str(addr))
+        echo_stat(f, "Read ALL requested from client : " + str(addr), INFO)
         try:
             if sensor.read():
                 pres = sensor.pressure()  # mbar (no arguments)
                 temp = sensor.temperature()  # degrees C (no arguments)
                 dept = sensor.depth()  # Saltwater depth (m)
                 data = str(pres) + ',' + str(temp) + ',' + str(dept)
-                echo_stat(f, "Server sent: " + data)
+                echo_stat(f, "Server sent: " + data, INFO)
                 conn.send(data.encode())
                 retry = 2  # Reset retry counter
 
             else:
-                echo_stat(f, "I2C Sensor read failure, sending err(0),-1,-1 to client")
+                echo_stat(f, "I2C Sensor read failure, sending err(0),-1,-1 to client", WARN)
                 data = "-1,-1,-1"
                 conn.send(data.encode())
-                echo_stat(f, "Delaying " + str(retry) + " seconds before retry")
+                echo_stat(f, "Delaying " + str(retry) + " seconds before retry", WARN)
                 time.sleep(retry)
                 retry = retry + 1
 
         except socket.error as msg:
             # This exception will cover various socket errors such as a broken pipe (client disconnect)
-            echo_stat(f, "Client (" + str(addr) + "): connection closed")
+            echo_stat(f, "Client (" + str(addr) + "): connection closed", ERRO)
             conn.close()
             break
 
     elif str(data.decode('utf-8')).startswith(MSG_DISCONNECT):
-        echo_stat(f, "DISCONNECT requested from client : " + str(addr))
+        echo_stat(f, "DISCONNECT requested from client : " + str(addr), INFO)
         conn.close()
-        echo_stat(f, "Client (" + str(addr) + "): connection closed")
-        echo_stat(f, "Awaiting client connection")
+        echo_stat(f, "Client (" + str(addr) + "): connection closed", INFO)
+        echo_stat(f, "Awaiting client connection", INFO)
         conn, addr = s.accept()
-        echo_stat(f, "Client connected from IP: " + str(addr))
+        echo_stat(f, "Client connected from IP: " + str(addr), INFO)
 
     else:
         try:
-            echo_stat(f, "Unknown command sent from client : " + str(addr) + ' ' + data.decode('utf-8'))
+            echo_stat(f, "Unknown command sent from client : " + str(addr) + ' ' + data.decode('utf-8'), WARN)
             response = 'CMD_UNKNOWN : ' + data.decode('utf-8')
-            echo_stat(f, "Server sent: " + response)
             conn.send(response.encode())
 
         except socket.error as msg:
             # This exception will cover various socket errors such as a broken pipe (client disconnect)
-            echo_stat(f, "Client (" + str(addr) + "): connection closed")
+            echo_stat(f, "Client (" + str(addr) + "): connection closed", ERRO)
             conn.close()
             break
 
