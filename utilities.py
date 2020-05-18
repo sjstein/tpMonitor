@@ -1,7 +1,4 @@
 from datetime import datetime
-#import fcntl
-import socket
-import struct
 import subprocess
 import sys
 
@@ -11,6 +8,7 @@ timestamp_format = '%Y%m%d %H:%M:%S'
 ERRO = 2  # Message types for console_message function
 WARN = 1
 INFO = 0
+
 
 def timestamp():
     return datetime.now().strftime(timestamp_format)

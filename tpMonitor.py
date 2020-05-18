@@ -5,10 +5,9 @@ import time
 import re
 import sys
 
-
+# Project-locals
 from utilities import console_message
 from utilities import ERRO, WARN, INFO
-
 
 
 # Variable declaration section
