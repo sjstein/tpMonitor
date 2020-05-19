@@ -46,9 +46,10 @@ def console_message(msg='', severity=3, verbosity=2):
 
 
 # Function to write status to both console and log file
-def echo_stat(fdesc, loc_msg, severity=3):
+def echo_stat(fname, loc_msg, severity=3):
     console_message(loc_msg, severity,)
-    fdesc.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
+    with open(fname, 'a') as f:
+        f.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
 
 
 def get_interface_devices():
