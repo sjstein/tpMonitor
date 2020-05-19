@@ -27,6 +27,7 @@ def valid_ip(ip_nbr):
     else:
         return False  # IP address is malformed
 
+
 # Function to print message on console
 def console_message(msg='', severity=3, verbosity=2):
     if not msg:  # To send a blank line to console, call function with no msg
@@ -42,6 +43,12 @@ def console_message(msg='', severity=3, verbosity=2):
     elif verbosity > 1:
         print(msg)
     return ()
+
+
+# Function to write status to both console and log file
+def echo_stat(fdesc, loc_msg, severity=3):
+    console_message(loc_msg, severity,)
+    fdesc.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
 
 
 def get_interface_devices():

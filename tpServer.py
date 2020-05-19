@@ -10,7 +10,7 @@ import threading
 import time
 
 # Project-locals:
-from utilities import get_interface_devices, console_message
+from utilities import get_interface_devices, console_message, echo_stat
 from utilities import INFO, WARN, ERRO
 
 parser = ArgumentParser()
@@ -45,12 +45,6 @@ if HOST is None:
         console_message(f'\t\t{interface} : {address}', None)
     console_message('Exiting', ERRO)
     sys.exit(-1)
-
-
-# Function to write status to both console and log file
-def echo_stat(fdesc, loc_msg, severity=3):
-    console_message(loc_msg, severity,)
-    fdesc.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
 
 
 # Client handler - meant to be threaded
