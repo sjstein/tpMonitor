@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 import subprocess
 import sys
 
@@ -13,6 +14,18 @@ INFO = 0
 def timestamp():
     return datetime.now().strftime(timestamp_format)
 
+# Function to validate IPv4 address
+def valid_ip(ip_nbr):
+    # Create regular expression used to evaluate ipv4 address
+    regex_ip = '''^(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
+                25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
+                25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
+                25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)$'''
+
+    if re.search(regex_ip, ip_nbr):
+        return True  # IP address is properly formed
+    else:
+        return False  # IP address is malformed
 
 # Function to print message on console
 def console_message(msg='', severity=3, verbosity=2):

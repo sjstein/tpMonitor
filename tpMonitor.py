@@ -2,11 +2,10 @@ import argparse
 import socket
 import datetime
 import time
-import re
 import sys
 
 # Project-locals
-from utilities import console_message
+from utilities import console_message, valid_ip
 from utilities import ERRO, WARN, INFO
 
 
@@ -33,20 +32,6 @@ PORT = 5005  # TCP port for connection to server
 
 MSG_READ_ALL = b'r all'
 MSG_DISCONNECT = b'discon'
-
-
-# Function to validate IPv4 address
-def valid_ip(ip_nbr):
-    # Create regular expression used to evaluate ipv4 address
-    regex_ip = '''^(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
-                25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
-                25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
-                25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)$'''
-
-    if re.search(regex_ip, ip_nbr):
-        return 1  # IP address is properly formed
-    else:
-        return 0  # IP address is malformed
 
 
 # Set up argument parser
