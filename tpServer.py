@@ -26,9 +26,9 @@ args = parser.parse_args()
 
 # Conditionally import mock or hardware sensor module:
 if args.debug:
-    print('    *** WARNING ***     ')
-    print('Operating in DEBUG mode!')
-    print(' USING MOCK SENSOR DATA ')
+    console_message('\n    *** WARNING ***     ', None)
+    console_message('Operating in DEBUG mode!', None)
+    console_message(' USING MOCK SENSOR DATA \n', None)
     import mock_ms5837 as ms5837
 else:
     import ms5837
