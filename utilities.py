@@ -35,14 +35,13 @@ def console_message(msg='', severity=3, verbosity=2):
         return ()
     prog_name = '{' + sys.argv[0] + '}'
     if severity == ERRO:
-        print((timestamp() + " [ERRO] " + msg + " " + prog_name))
+        print(timestamp() + " [ERRO] " + msg + " " + prog_name)
     elif severity == WARN and verbosity > 0:
-        print((timestamp() + " [WARN] " + msg + " " + prog_name))
+        print(timestamp() + " [WARN] " + msg + " " + prog_name)
     elif severity == INFO and verbosity > 1:
-        print((timestamp() + " [INFO] " + msg + " " + prog_name))
+        print(timestamp() + " [INFO] " + msg + " " + prog_name)
     elif verbosity > 1:
         print(msg)
-    return ()
 
 
 # Function to write status to both console and log file
