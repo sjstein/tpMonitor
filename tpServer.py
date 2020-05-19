@@ -147,7 +147,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
     # We have to read initial values from sensor to update pressure and temperature
     if not sensor.read():
-        echo_stat(fname, '|SUPR| Initial sensor read failed - exiting', INFO)
+        echo_stat(fname, '|SUPR| Initial sensor read failed - exiting', ERRO)
         exit(1)
 
     echo_stat(fname, '|SUPR| Initial Pressure: '
