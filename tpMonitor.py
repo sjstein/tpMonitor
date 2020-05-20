@@ -5,7 +5,7 @@ import time
 import sys
 
 # Project-locals
-from utilities import console_message, valid_ip
+from utilities import console_message, valid_ip, IntRange
 from utilities import ERRO, WARN, INFO
 
 
@@ -40,10 +40,10 @@ parser = argparse.ArgumentParser(description='Python script to query a remote se
 parser.add_argument("serverIP", help="IP Number of server.")
 parser.add_argument("-l", "--log", help="File name for logging (default is NO logging).")
 parser.add_argument("-f", "--freq", help="Frequency (in secs) to read data [default " + str(archive_freq) + " sec].",
-                    type=int)
+                    type=IntRange(1,))
 parser.add_argument("-t", "--time", help="Time (in mins) to run [default " + str(run_time) + " min ]. -1 denotes run\
- forever, 0 denotes run for one iteration.", type=int)
-parser.add_argument("-v", "--verbosity", help="Verbosity level (0-2) [default = 2, most verbose].", type=int)
+ forever, 0 denotes run for one iteration.", type=IntRange(-1,))
+parser.add_argument("-v", "--verbosity", help="Verbosity level (0-2) [default = 2, most verbose].", type=IntRange(0, 2))
 
 # Read arguments passed on command line
 args = parser.parse_args()
@@ -60,20 +60,10 @@ if args.log is not None:  # Log filename - optional
     logging = True
 if args.freq is not None:  # Read frequency (seconds) - optional (default defined above)
     archive_freq = args.freq
-    if archive_freq <= 0:
-        console_message("Invalid collection frequency (--freq) (" + str(archive_freq) + "). Exiting.", ERRO, verbosity)
-        exit(-1)
 if args.time is not None:  # Run duration (minutes) - optional (default defined above)
     run_time = args.time
-    if run_time < -1:   # Run time of (-1) denotes "run forever"
-        console_message("Invalid run duration (--time) (" + str(run_time) + "). Exiting.", ERRO, verbosity)
-        exit(-1)
 if args.verbosity is not None:  # Verbosity level - option (default defined above)
     verbosity = args.verbosity
-    if verbosity <= 0:
-        verbosity = 0
-    elif verbosity >= 2:
-        verbosity = 2
 
 if logging:
     # Open the file and write the header
@@ -122,19 +112,19 @@ while True:
 
         if logging:
             f.write(data_line + '\n')
-#       console_message("Server reports : " + data.decode("utf-8"), INFO, verbosity)
         if run_time < 0:
             console_message("Run time       : " + str(accum_time) + " seconds", INFO, verbosity)
         else:
-            console_message("Run time       : " + str(accum_time) + " of " + str(int(run_time) * 60) + " seconds", INFO, verbosity)
+            console_message("Run time       : " + str(accum_time) + " of " + str(int(run_time) * 60) + " seconds",
+                            INFO, verbosity)
         console_message("Current depth  : " + "{0:.2f}".format(float(depth_meters)) + " meters (" + "{0:.2f}".format(
             depth_feet) + " ft)", INFO, verbosity)
         console_message("Current temp   : " + "{0:.2f}".format(float(temp_c)) + " deg C (" + "{0:.2f}".format(
             temp_f) + " deg F)", INFO, verbosity)
-        console_message('')  # Blank line
+        if verbosity > 1:
+            console_message('', None, verbosity)  # Blank line
         if logging:
             f.close()
-            s.close()
         if (run_time > 0) and (accum_time >= int(run_time) * 60) or run_time == 0:
             console_message("Acquisition complete.", INFO, verbosity)
             s.sendall(MSG_DISCONNECT)
@@ -152,7 +142,6 @@ while True:
     except KeyboardInterrupt:
         if logging:
             f.close()
-            s.close()
         if run_time <= 0:
             console_message("Program terminated via user interrupt.", INFO, verbosity)
             exit(0)
