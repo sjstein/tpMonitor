@@ -3,3 +3,6 @@ __pycache__/
 
 # Locally linked file:
 ms5837.py
+
+# Log files:
+*.log
