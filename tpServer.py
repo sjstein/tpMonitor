@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-
+# take the cr out
 # Built-in packages:
 from argparse import ArgumentParser
 from datetime import date
@@ -10,9 +10,11 @@ import threading
 import time
 
 # Project-locals:
-from utilities import get_interface_devices, console_message, echo_stat
+from utilities import get_interface_devices, echo_stat
 from utilities import INFO, WARN, ERRO
+from utilities import Logger
 
+log = Logger()
 parser = ArgumentParser()
 parser.add_argument('--debug',
                     action='store_true',
@@ -26,9 +28,9 @@ args = parser.parse_args()
 
 # Conditionally import mock or hardware sensor module:
 if args.debug:
-    console_message('\n    *** WARNING ***     ', None)
-    console_message('Operating in DEBUG mode!', None)
-    console_message(' USING MOCK SENSOR DATA \n', None)
+    log.disp('\n    *** WARNING ***     ')
+    log.disp('Operating in DEBUG mode!')
+    log.disp(' USING MOCK SENSOR DATA \n')
     import mock_ms5837 as ms5837
 else:
     import ms5837
@@ -39,11 +41,11 @@ interface_info = get_interface_devices()
 # If the command line arg device is not found, error out:
 HOST = interface_info.get(args.interface)
 if HOST is None:
-    console_message(f'Device {args.interface} not found.', ERRO)
-    console_message('\tAvailable interfaces:', None)
+    log.erro(f'Device {args.interface} not found.')
+    log.disp('\tAvailable interfaces:')
     for interface, address in interface_info.items():
-        console_message(f'\t\t{interface} : {address}', None)
-    console_message('Exiting', ERRO)
+        log.disp(f'\t\t{interface} : {address}')
+    log.erro('Exiting')
     sys.exit(-1)
 
 

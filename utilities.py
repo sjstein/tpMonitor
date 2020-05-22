@@ -5,11 +5,18 @@ import sys
 import argparse
 
 
-timestamp_format = '%Y%m%d %H:%M:%S'
-
-ERRO = 2  # Message types for console_message function
+time_shortform = '%Y%m%d %H:%M:%S'
+time_longform = '%Y%m%d %H:%M:%S.%f'
+# so take the cr out
+ERRO = 0  # Message types for console_message function
 WARN = 1
-INFO = 0
+INFO = 2
+DISP = 3
+
+V_NONE = 0
+V_LOW = 1
+V_MED = 2
+V_HIGH = 3
 
 class IntRange:
     """
@@ -34,17 +41,42 @@ class IntRange:
 
     def exception(self):
         if self.imin is not None and self.imax is not None:
-            return argparse.ArgumentTypeError(f"Must be an integer in the range [{self.imin}, {self.imax}]")
+            return argparse.ArgumentTypeError(f'Must be an integer in the range [{self.imin}, {self.imax}]')
         elif self.imin is not None:
-            return argparse.ArgumentTypeError(f"Must be an integer >= {self.imin}")
+            return argparse.ArgumentTypeError(f'Must be an integer >= {self.imin}')
         elif self.imax is not None:
-            return argparse.ArgumentTypeError(f"Must be an integer <= {self.imax}")
+            return argparse.ArgumentTypeError(f'Must be an integer <= {self.imax}')
         else:
-            return argparse.ArgumentTypeError("Must be an integer")
+            return argparse.ArgumentTypeError('Must be an integer')
+
+
+class Logger:
+
+    verbosity = 0
+
+    def __init__(self, msg='', dest=None):
+        self.msg = msg
+        self.dest = dest
+
+    def info(self, msg='', dest=None):
+        console_message(msg, INFO, self.verbosity)
+        return
+
+    def warn(self, msg='', dest=None):
+        console_message(msg, WARN, self.verbosity)
+        return
+
+    def erro(self, msg='', dest=None):
+        console_message(msg, ERRO, self.verbosity)
+        return
+
+    def disp(self, msg='', dest=None):
+        console_message(msg, DISP, self.verbosity)
+        return
 
 
 def timestamp():
-    return datetime.now().strftime(timestamp_format)
+    return datetime.now().strftime(time_shortform)
 
 # Function to validate IPv4 address
 def valid_ip(ip_nbr):
@@ -61,18 +93,18 @@ def valid_ip(ip_nbr):
 
 
 # Function to print message on console
-def console_message(msg='', severity=3, verbosity=2):
+def console_message(msg='', severity=None, verbosity=V_HIGH):
     if not msg:  # To send a blank line to console, call function with no msg
         print('')
         return ()
     prog_name = '{' + sys.argv[0] + '}'
-    if severity == ERRO:
-        print(timestamp() + " [ERRO] " + msg + " " + prog_name)
-    elif severity == WARN and verbosity > 0:
-        print(timestamp() + " [WARN] " + msg + " " + prog_name)
-    elif severity == INFO and verbosity > 1:
-        print(timestamp() + " [INFO] " + msg + " " + prog_name)
-    elif verbosity > 1:
+    if severity == ERRO and verbosity > V_NONE:
+        print(timestamp() + ' [ERRO] ' + msg + ' ' + prog_name)
+    elif severity == WARN and verbosity > V_LOW:
+        print(timestamp() + ' [WARN] ' + msg + ' ' + prog_name)
+    elif severity == INFO and verbosity > V_MED:
+        print(timestamp(), ' [INFO] ', msg, prog_name)
+    elif severity == DISP and verbosity > V_NONE:
         print(msg)
 
 
@@ -80,7 +112,7 @@ def console_message(msg='', severity=3, verbosity=2):
 def echo_stat(fname, loc_msg, severity=3):
     console_message(loc_msg, severity,)
     with open(fname, 'a') as f:
-        f.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
+        f.write('[' + str(datetime.now()) + '] ' + loc_msg + '\n')
 
 
 def get_interface_devices():
