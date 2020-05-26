@@ -6,7 +6,7 @@ import sys
 
 # Project-locals
 from utilities import valid_ip, IntRange
-from utilities import ERRO, WARN, INFO, V_NONE, V_LOW, V_MED, V_HIGH
+from utilities import V_NONE, V_MED, V_HIGH
 from utilities import Logger
 
 
@@ -60,6 +60,7 @@ if not (valid_ip(server_addr)):
     exit(-1)
 if args.log is not None:  # Log filename - optional
     fname = args.log
+    # Check for valid filename?
     logging = True
 if args.freq is not None:  # Read frequency (seconds) - optional (default defined above)
     archive_freq = args.freq

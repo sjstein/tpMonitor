@@ -7,13 +7,13 @@ import argparse
 
 time_shortform = '%Y%m%d %H:%M:%S'
 time_longform = '%Y%m%d %H:%M:%S.%f'
-# so take the cr out
+
 ERRO = 0  # Message types for console_message function
 WARN = 1
 INFO = 2
 DISP = 3
 
-V_NONE = 0
+V_NONE = 0  # Verbosity levels (0 = lowest)
 V_LOW = 1
 V_MED = 2
 V_HIGH = 3
@@ -22,8 +22,7 @@ class IntRange:
     """
     Class used to validate that a CL argument (int type) is within
     [min,max] range. Utilized with 'type' parameter of add_argument.
-    e.g.
-    argparse.add_argument('...',type=IntRange,...)
+    e.g.    argparse.add_argument('...',type=IntRange,...)
     """
 
     def __init__(self, imin=None, imax=None):
@@ -51,32 +50,66 @@ class IntRange:
 
 
 class Logger:
-
-    verbosity = 0
+    verbosity = V_HIGH
 
     def __init__(self, msg='', dest=None):
         self.msg = msg
         self.dest = dest
 
     def info(self, msg='', dest=None):
-        console_message(msg, INFO, self.verbosity)
+        self.console_message(msg, INFO)
+        if dest is not None:
+            self.file_message(msg, dest)
         return
 
     def warn(self, msg='', dest=None):
-        console_message(msg, WARN, self.verbosity)
+        self.console_message(msg, WARN)
+        if dest is not None:
+            self.file_message(msg, dest)
         return
 
     def erro(self, msg='', dest=None):
-        console_message(msg, ERRO, self.verbosity)
+        self.console_message(msg, ERRO)
+        if dest is not None:
+            self.file_message(msg, dest)
         return
 
     def disp(self, msg='', dest=None):
-        console_message(msg, DISP, self.verbosity)
+        self.console_message(msg, DISP)
+        if dest is not None:
+            self.file_message(msg, dest)
         return
 
+    # Write message to console with short form timestamp
+    def console_message(self, msg='', severity=None):
+        if not msg:  # To send a blank line to console, call function with no msg
+            print('')
+            return
+        prog_name = '{' + sys.argv[0] + '}'
+        if severity == ERRO and self.verbosity > V_NONE:
+            print(self.timestamp(), '[ERRO]', msg, prog_name)
+        elif severity == WARN and self.verbosity > V_LOW:
+            print(self.timestamp(), '[WARN]', msg, prog_name)
+        elif severity == INFO and self.verbosity > V_MED:
+            print(self.timestamp(), '[INFO]', msg, prog_name)
+        elif severity == DISP and self.verbosity > V_NONE:
+            print(msg)
+        return
 
-def timestamp():
-    return datetime.now().strftime(time_shortform)
+    # Write message to file <fname> with long form timestamp
+    def file_message(self, msg='', fname=None):
+        with open(fname, 'a') as f:
+            f.write('[' + self.timestamp('long') + '] ' + msg + '\n')
+        return
+
+    # Return timestamp string in short (HH:MM:SS) or long (HH:MM:SS.ff) format
+    @staticmethod
+    def timestamp(fmt='short'):
+        if fmt == 'short':
+            return datetime.now().strftime(time_shortform)
+        else:
+            return datetime.now().strftime(time_longform)
+
 
 # Function to validate IPv4 address
 def valid_ip(ip_nbr):
@@ -90,29 +123,6 @@ def valid_ip(ip_nbr):
         return True  # IP address is properly formed
     else:
         return False  # IP address is malformed
-
-
-# Function to print message on console
-def console_message(msg='', severity=None, verbosity=V_HIGH):
-    if not msg:  # To send a blank line to console, call function with no msg
-        print('')
-        return ()
-    prog_name = '{' + sys.argv[0] + '}'
-    if severity == ERRO and verbosity > V_NONE:
-        print(timestamp() + ' [ERRO] ' + msg + ' ' + prog_name)
-    elif severity == WARN and verbosity > V_LOW:
-        print(timestamp() + ' [WARN] ' + msg + ' ' + prog_name)
-    elif severity == INFO and verbosity > V_MED:
-        print(timestamp(), ' [INFO] ', msg, prog_name)
-    elif severity == DISP and verbosity > V_NONE:
-        print(msg)
-
-
-# Function to write status to both console and log file
-def echo_stat(fname, loc_msg, severity=3):
-    console_message(loc_msg, severity,)
-    with open(fname, 'a') as f:
-        f.write('[' + str(datetime.now()) + '] ' + loc_msg + '\n')
 
 
 def get_interface_devices():
