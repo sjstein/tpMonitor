@@ -50,35 +50,61 @@ class IntRange:
 
 
 class Logger:
+
+    _severities = [
+        'ERRO',
+        'WARN',
+        'INFO',
+        'DISP',
+    ]
+
     verbosity = V_HIGH
 
-    def __init__(self, msg='', dest=None):
-        self.msg = msg
-        self.dest = dest
+    def __init__(self):
 
-    def info(self, msg='', dest=None):
-        self.console_message(msg, INFO)
-        if dest is not None:
-            self.file_message(msg, dest)
-        return
+        """
+        _generic_method is the skeleton code that will be expanded into a number of methods based on the
+        _severities list (above). For each member in that list, the __init__ method will create a new method with
+        name = member. From the instantiated object, user will call <objname>.<methodname>('msg','fname'). Where msg
+        is the text to be sent to the console and (optionally) a file; fname is the name of the file.
+        """
+        def _generic_method(msg='', severity=None, fname=None):
+            if not msg:  # To send a blank line to console, call function with no msg
+                print('')
+                return
+            prog_name = '{' + sys.argv[0] + '}'
+            if severity == 'ERRO' and self.verbosity > V_NONE:
+                print(self.timestamp(), '[ERRO]', msg, prog_name)
+            elif severity == 'WARN' and self.verbosity > V_LOW:
+                print(self.timestamp(), '[WARN]', msg, prog_name)
+            elif severity == 'INFO' and self.verbosity > V_MED:
+                print(self.timestamp(), '[INFO]', msg, prog_name)
+            elif severity == 'DISP' and self.verbosity > V_NONE:
+                print(msg)
+            if fname is not None:
+                self.file_message(msg, fname)
 
-    def warn(self, msg='', dest=None):
-        self.console_message(msg, WARN)
-        if dest is not None:
-            self.file_message(msg, dest)
-        return
+        def _create_logging_method(severity_str, dest=None):
+            def logging_method(msg='', fname=dest):
+                _generic_method(msg=msg, severity=severity_str, fname=fname)
+            return logging_method
 
-    def erro(self, msg='', dest=None):
-        self.console_message(msg, ERRO)
-        if dest is not None:
-            self.file_message(msg, dest)
-        return
+        """
+        Upon instantiation, the for loop below will create a class method for each member within the _severities list.
+        These new class methods will have severity embedded in the method name, so will only require passing of the 
+        message and filename strings; obj.method('msg','fname').
+        """
+        for severity in self._severities:
+            lm = _create_logging_method(severity, None)
+            setattr(self, severity.lower(), lm)
 
-    def disp(self, msg='', dest=None):
-        self.console_message(msg, DISP)
-        if dest is not None:
-            self.file_message(msg, dest)
-        return
+    # Handle a call to an unknown method
+    def __getattr__(self, name):
+        def method(*args):
+            print(self.__class__, 'unknown method:', name)
+            if args:
+                print(f'called with {str(args)} argument(s)')
+        return method
 
     # Write message to console with short form timestamp
     def console_message(self, msg='', severity=None):
