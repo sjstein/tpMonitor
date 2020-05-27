@@ -5,9 +5,9 @@ import time
 import sys
 
 # Project-locals
-from utilities import valid_ip, IntRange
-from utilities import V_NONE, V_MED, V_HIGH
-from utilities import Logger
+from tpUtilities import valid_ip, IntRange
+from tpUtilities import V_NONE, V_MED, V_HIGH
+from tpUtilities import TpLogger
 
 
 # Variable declaration section
@@ -25,7 +25,6 @@ s = ''  # socket object
 data = ''  # Return string from server
 curr_time = ''
 curr_date = ''
-log = Logger()
 
 prog_name = '{' + sys.argv[0] + '}'
 
@@ -55,6 +54,9 @@ fname = ''  # filename to log to
 # Parse command line arguments
 server_addr = args.serverIP  # Server IP  - not optional
 
+if args.verbosity is not None:  # Verbosity level - option (default defined above)
+    verbosity = args.verbosity
+log = TpLogger(verbosity)
 if not (valid_ip(server_addr)):
     log.erro('IP address ' + server_addr + ' invalid. Exiting.')
     exit(-1)
@@ -66,9 +68,6 @@ if args.freq is not None:  # Read frequency (seconds) - optional (default define
     archive_freq = args.freq
 if args.time is not None:  # Run duration (minutes) - optional (default defined above)
     run_time = args.time
-if args.verbosity is not None:  # Verbosity level - option (default defined above)
-    verbosity = args.verbosity
-log.verbosity = verbosity
 
 if logging:
     # Open the file and write the header
@@ -76,7 +75,7 @@ if logging:
     f.write('Date Time,Press(mBar),Temp(c),Depth(m)\n')
 
 # Write initial parameters to console
-log.info('Logger started with following parameters:')
+log.info('Acquisition started with following parameters:')
 if logging:
     log.info('     Saving to file     : ' + fname)
 log.info('     Server IP#         : ' + server_addr)
@@ -87,9 +86,6 @@ elif run_time == 0:
     log.info('     Acquiring data for one iteration')
 else:
     log.info('     Acquiring data for : ' + str(run_time) + ' minutes')
-curr_date_time = datetime.datetime.now()
-log.info('     Acquisition started : ' + str(curr_date_time.strftime('%Y%m%d')) + ' at ' + \
-                str(curr_date_time.strftime('%H:%M:%S')))
 log.info('')
 # Set up socket for messages
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -125,8 +121,7 @@ while True:
             depth_feet) + ' ft)')
         log.info('Current temp   : ' + '{0:.2f}'.format(float(temp_c)) + ' deg C (' + '{0:.2f}'.format(
             temp_f) + ' deg F)')
-        if verbosity > V_MED:
-            log.info('')  # Blank line
+        log.info('')
         if logging:
             f.close()
         if (run_time > 0) and (accum_time >= int(run_time) * 60) or run_time == 0:

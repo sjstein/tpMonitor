@@ -3,18 +3,17 @@
 # Built-in packages:
 from argparse import ArgumentParser
 from datetime import date
-from datetime import datetime
 import socket
 import sys
 import threading
 import time
 
 # Project-locals:
-from utilities import get_interface_devices
-from utilities import V_HIGH
-from utilities import Logger
+from tpUtilities import get_interface_devices
+from tpUtilities import V_HIGH
+from tpUtilities import TpLogger
 
-log = Logger()
+log = TpLogger(V_HIGH)
 
 parser = ArgumentParser()
 parser.add_argument('--debug',

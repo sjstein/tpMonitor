@@ -9,14 +9,15 @@ time_shortform = '%Y%m%d %H:%M:%S'
 time_longform = '%Y%m%d %H:%M:%S.%f'
 
 ERRO = 0  # Message types for console_message function
-WARN = 1
-INFO = 2
-DISP = 3
+WARN = 10
+INFO = 20
+DISP = 30
 
 V_NONE = 0  # Verbosity levels (0 = lowest)
 V_LOW = 1
 V_MED = 2
 V_HIGH = 3
+
 
 class IntRange:
     """
@@ -49,18 +50,18 @@ class IntRange:
             return argparse.ArgumentTypeError('Must be an integer')
 
 
-class Logger:
+class TpLogger:
 
-    _severities = [
-        'ERRO',
-        'WARN',
-        'INFO',
-        'DISP',
-    ]
+    severities_dict = {
+        'ERRO': 0,
+        'WARN': 1,
+        'INFO': 2,
+        'DISP': 3,
+    }
 
-    verbosity = V_HIGH
+    def __init__(self, verbosity=V_HIGH):
 
-    def __init__(self):
+        self.verbosity = verbosity
 
         """
         _generic_method is the skeleton code that will be expanded into a number of methods based on the
@@ -68,25 +69,18 @@ class Logger:
         name = member. From the instantiated object, user will call <objname>.<methodname>('msg','fname'). Where msg
         is the text to be sent to the console and (optionally) a file; fname is the name of the file.
         """
-        def _generic_method(msg='', severity=None, fname=None):
-            if not msg:  # To send a blank line to console, call function with no msg
-                print('')
-                return
-            prog_name = '{' + sys.argv[0] + '}'
-            if severity == 'ERRO' and self.verbosity > V_NONE:
-                print(self.timestamp(), '[ERRO]', msg, prog_name)
-            elif severity == 'WARN' and self.verbosity > V_LOW:
-                print(self.timestamp(), '[WARN]', msg, prog_name)
-            elif severity == 'INFO' and self.verbosity > V_MED:
-                print(self.timestamp(), '[INFO]', msg, prog_name)
-            elif severity == 'DISP' and self.verbosity > V_NONE:
-                print(msg)
-            if fname is not None:
+        def _generic_method(severity_str, msg, fname=None):
+            if verbosity >= self.severities_dict[severity_str]:
+                if msg == '':
+                    print('')
+                else:
+                    print(f'{self.timestamp()} [{severity_str}] {msg} {{{sys.argv[0]}}}')
+            if fname:
                 self.file_message(msg, fname)
 
-        def _create_logging_method(severity_str, dest=None):
-            def logging_method(msg='', fname=dest):
-                _generic_method(msg=msg, severity=severity_str, fname=fname)
+        def _create_logging_method(severity_str):
+            def logging_method(msg, fname=None):
+                _generic_method(severity_str, msg, fname=fname)
             return logging_method
 
         """
@@ -94,39 +88,14 @@ class Logger:
         These new class methods will have severity embedded in the method name, so will only require passing of the 
         message and filename strings; obj.method('msg','fname').
         """
-        for severity in self._severities:
-            lm = _create_logging_method(severity, None)
+        for severity in self.severities_dict.keys():
+            lm = _create_logging_method(severity)
             setattr(self, severity.lower(), lm)
-
-    # Handle a call to an unknown method
-    def __getattr__(self, name):
-        def method(*args):
-            print(self.__class__, 'unknown method:', name)
-            if args:
-                print(f'called with {str(args)} argument(s)')
-        return method
-
-    # Write message to console with short form timestamp
-    def console_message(self, msg='', severity=None):
-        if not msg:  # To send a blank line to console, call function with no msg
-            print('')
-            return
-        prog_name = '{' + sys.argv[0] + '}'
-        if severity == ERRO and self.verbosity > V_NONE:
-            print(self.timestamp(), '[ERRO]', msg, prog_name)
-        elif severity == WARN and self.verbosity > V_LOW:
-            print(self.timestamp(), '[WARN]', msg, prog_name)
-        elif severity == INFO and self.verbosity > V_MED:
-            print(self.timestamp(), '[INFO]', msg, prog_name)
-        elif severity == DISP and self.verbosity > V_NONE:
-            print(msg)
-        return
 
     # Write message to file <fname> with long form timestamp
     def file_message(self, msg='', fname=None):
         with open(fname, 'a') as f:
-            f.write('[' + self.timestamp('long') + '] ' + msg + '\n')
-        return
+            f.write(f'{self.timestamp("long")} {msg} \n')
 
     # Return timestamp string in short (HH:MM:SS) or long (HH:MM:SS.ff) format
     @staticmethod
