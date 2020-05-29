@@ -1,6 +1,5 @@
 import argparse
 import socket
-import datetime
 import time
 import sys
 
@@ -14,7 +13,6 @@ from tpUtilities import TpLogger
 archive_freq = 5    # Default archive frequency in seconds
 run_time = 60       # Default run time in minutes
 logging = False     # Default to no logging
-verbosity = V_HIGH  # Default to most verbose status messages
 accum_time = 0      # Counter to hold total run time
 depth_meters = 0.0
 depth_feet = 0.0
@@ -37,26 +35,24 @@ MSG_DISCONNECT = b'discon'
 
 # Set up argument parser
 parser = argparse.ArgumentParser(description='Python script to query a remote server for temperature and pressure\
- data, and optionally write that data to a text file.')
+ data, and optionally write that data to a text file.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('serverIP', help='IP Number of server.')
 parser.add_argument('-l', '--log', help='File name for logging (default is NO logging).')
-parser.add_argument('-f', '--freq', help='Frequency (in secs) to read data [default ' + str(archive_freq) + ' sec].',
-                    type=IntRange(1,))
-parser.add_argument('-t', '--time', help='Time (in mins) to run [default ' + str(run_time) + ' min ]. -1 denotes run\
- forever, 0 denotes run for one iteration.', type=IntRange(-1,))
-parser.add_argument('-v', '--verbosity', help='Verbosity level (0-3) [0 = suppress all; 3 (default) = most verbose].',
-                    type=IntRange(V_NONE, V_HIGH))
+parser.add_argument('-f', '--freq', help='Frequency (in seconds) to read data.',
+                    type=IntRange(1,), default=archive_freq)
+parser.add_argument('-t', '--time', help='Time (in minutes) to run (-1 denotes run forever, \
+0 denotes run for one iteration).', type=IntRange(-1,), default=run_time)
+parser.add_argument('-v', '--verbosity', help='Verbosity level 0 (silent) to 3 (most verbose).',
+                    type=IntRange(V_NONE, V_HIGH), default=V_HIGH)
 
 # Read arguments passed on command line
 args = parser.parse_args()
 fname = ''  # filename to log to
 
 # Parse command line arguments
+log = TpLogger(args.verbosity)
 server_addr = args.serverIP  # Server IP  - not optional
 
-if args.verbosity is not None:  # Verbosity level - option (default defined above)
-    verbosity = args.verbosity
-log = TpLogger(verbosity)
 if not (valid_ip(server_addr)):
     log.erro('IP address ' + server_addr + ' invalid. Exiting.')
     exit(-1)
@@ -95,10 +91,7 @@ s.connect((server_addr, PORT))
 # Main Loop
 while True:
     try:
-        if logging:
-            f = open(fname, 'a')
         s.sendall(MSG_READ_ALL)
-        curr_date_time = datetime.datetime.now()
         data = s.recv(1024)
         # populate list with elements of pressure, temperature
         elem = data.split(b',')  # type : List[str]
@@ -106,13 +99,12 @@ while True:
         temp_f = float(temp_c) * (9.0 / 5.0) + 32
         depth_meters = elem[2]
         depth_feet = float(depth_meters) * 3.28084
-        curr_date = str(curr_date_time.strftime('%Y%m%d'))
-        curr_time = str(curr_date_time.strftime('%H:%M:%S'))
-        time_line = curr_date + ' ' + curr_time
-        data_line = time_line + ',' + data.decode('utf-8')
 
         if logging:
+            data_line = f'{log.timestamp()},{data.decode("utf-8")}'
+            f = open(fname, 'a')
             f.write(data_line + '\n')
+            f.close()
         if run_time < 0:
             log.info('Run time       : ' + str(accum_time) + ' seconds')
         else:
@@ -122,15 +114,14 @@ while True:
         log.info('Current temp   : ' + '{0:.2f}'.format(float(temp_c)) + ' deg C (' + '{0:.2f}'.format(
             temp_f) + ' deg F)')
         log.info('')
-        if logging:
-            f.close()
+
         if (run_time > 0) and (accum_time >= int(run_time) * 60) or run_time == 0:
             log.info('Acquisition complete.')
             s.sendall(MSG_DISCONNECT)
             s.close()
             exit(0)
-        time.sleep(float(archive_freq))
-        accum_time = accum_time + float(archive_freq)
+        time.sleep(archive_freq)
+        accum_time += archive_freq
 
     except socket.timeout:
         log.warn('Timeout waiting for server response.')

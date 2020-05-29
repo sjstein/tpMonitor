@@ -4,14 +4,8 @@ import subprocess
 import sys
 import argparse
 
-
 time_shortform = '%Y%m%d %H:%M:%S'
 time_longform = '%Y%m%d %H:%M:%S.%f'
-
-ERRO = 0  # Message types for console_message function
-WARN = 10
-INFO = 20
-DISP = 30
 
 V_NONE = 0  # Verbosity levels (0 = lowest)
 V_LOW = 1
@@ -69,19 +63,19 @@ class TpLogger:
         name = member. From the instantiated object, user will call <objname>.<methodname>('msg','fname'). Where msg
         is the text to be sent to the console and (optionally) a file; fname is the name of the file.
         """
-        def _generic_method(severity_str, msg, fname=None):
+        def _logging_method_template(severity_str, msg=None, fname=None):
             if verbosity >= self.severities_dict[severity_str]:
-                if msg == '':
-                    print('')
-                else:
+                if msg:
                     print(f'{self.timestamp()} [{severity_str}] {msg} {{{sys.argv[0]}}}')
+                else:
+                    print('')
             if fname:
                 self.file_message(msg, fname)
 
         def _create_logging_method(severity_str):
-            def logging_method(msg, fname=None):
-                _generic_method(severity_str, msg, fname=fname)
-            return logging_method
+            def _templated_logging_method(msg, fname=None):
+                _logging_method_template(severity_str, msg, fname=fname)
+            return _templated_logging_method
 
         """
         Upon instantiation, the for loop below will create a class method for each member within the _severities list.
@@ -104,6 +98,7 @@ class TpLogger:
             return datetime.now().strftime(time_shortform)
         else:
             return datetime.now().strftime(time_longform)
+
 
 
 # Function to validate IPv4 address
