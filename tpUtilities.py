@@ -58,10 +58,10 @@ class TpLogger:
         self.verbosity = verbosity
 
         """
-        _generic_method is the skeleton code that will be expanded into a number of methods based on the
-        _severities list (above). For each member in that list, the __init__ method will create a new method with
-        name = member. From the instantiated object, user will call <objname>.<methodname>('msg','fname'). Where msg
-        is the text to be sent to the console and (optionally) a file; fname is the name of the file.
+        _logging_method_template is the skeleton code that will be expanded into a number of methods based on the
+        _severities dict (above). For each severity entry in that dict, the __init__ function will create a new method 
+        with name = <entry>. From the instantiated object, user will call <objname>.<methodname>('msg','fname'). msg
+        is the text to be sent to the console and (optionally) the file <fname>.
         """
         def _logging_method_template(severity_str, msg=None, fname=None):
             if verbosity >= self.severities_dict[severity_str]:
@@ -98,7 +98,6 @@ class TpLogger:
             return datetime.now().strftime(time_shortform)
         else:
             return datetime.now().strftime(time_longform)
-
 
 
 # Function to validate IPv4 address
