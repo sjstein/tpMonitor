@@ -4,19 +4,20 @@ import subprocess
 import sys
 import argparse
 
+time_shortform = '%Y%m%d %H:%M:%S'
+time_longform = '%Y%m%d %H:%M:%S.%f'
 
-timestamp_format = '%Y%m%d %H:%M:%S'
+V_NONE = 0  # Verbosity levels (0 = lowest)
+V_LOW = 1
+V_MED = 2
+V_HIGH = 3
 
-ERRO = 2  # Message types for console_message function
-WARN = 1
-INFO = 0
 
 class IntRange:
     """
     Class used to validate that a CL argument (int type) is within
     [min,max] range. Utilized with 'type' parameter of add_argument.
-    e.g.
-    argparse.add_argument('...',type=IntRange,...)
+    e.g.    argparse.add_argument('...',type=IntRange,...)
     """
 
     def __init__(self, imin=None, imax=None):
@@ -34,17 +35,70 @@ class IntRange:
 
     def exception(self):
         if self.imin is not None and self.imax is not None:
-            return argparse.ArgumentTypeError(f"Must be an integer in the range [{self.imin}, {self.imax}]")
+            return argparse.ArgumentTypeError(f'Must be an integer in the range [{self.imin}, {self.imax}]')
         elif self.imin is not None:
-            return argparse.ArgumentTypeError(f"Must be an integer >= {self.imin}")
+            return argparse.ArgumentTypeError(f'Must be an integer >= {self.imin}')
         elif self.imax is not None:
-            return argparse.ArgumentTypeError(f"Must be an integer <= {self.imax}")
+            return argparse.ArgumentTypeError(f'Must be an integer <= {self.imax}')
         else:
-            return argparse.ArgumentTypeError("Must be an integer")
+            return argparse.ArgumentTypeError('Must be an integer')
 
 
-def timestamp():
-    return datetime.now().strftime(timestamp_format)
+class TpLogger:
+
+    severities_dict = {
+        'ERRO': 0,
+        'WARN': 1,
+        'INFO': 2,
+        'DISP': 3,
+    }
+
+    def __init__(self, verbosity=V_HIGH):
+
+        self.verbosity = verbosity
+
+        """
+        _logging_method_template is the skeleton code that will be expanded into a number of methods based on the
+        _severities dict (above). For each severity entry in that dict, the __init__ function will create a new method 
+        with name = <entry>. From the instantiated object, user will call <objname>.<methodname>('msg','fname'). msg
+        is the text to be sent to the console and (optionally) the file <fname>.
+        """
+        def _logging_method_template(severity_str, msg=None, fname=None):
+            if verbosity >= self.severities_dict[severity_str]:
+                if msg:
+                    print(f'{self.timestamp()} [{severity_str}] {msg} {{{sys.argv[0]}}}')
+                else:
+                    print('')
+            if fname:
+                self.file_message(msg, fname)
+
+        def _create_logging_method(severity_str):
+            def _templated_logging_method(msg, fname=None):
+                _logging_method_template(severity_str, msg, fname=fname)
+            return _templated_logging_method
+
+        """
+        Upon instantiation, the for loop below will create a class method for each member within the _severities list.
+        These new class methods will have severity embedded in the method name, so will only require passing of the 
+        message and filename strings; obj.method('msg','fname').
+        """
+        for severity in self.severities_dict.keys():
+            lm = _create_logging_method(severity)
+            setattr(self, severity.lower(), lm)
+
+    # Write message to file <fname> with long form timestamp
+    def file_message(self, msg='', fname=None):
+        with open(fname, 'a') as f:
+            f.write(f'{self.timestamp("long")} {msg} \n')
+
+    # Return timestamp string in short (HH:MM:SS) or long (HH:MM:SS.ff) format
+    @staticmethod
+    def timestamp(fmt='short'):
+        if fmt == 'short':
+            return datetime.now().strftime(time_shortform)
+        else:
+            return datetime.now().strftime(time_longform)
+
 
 # Function to validate IPv4 address
 def valid_ip(ip_nbr):
@@ -58,29 +112,6 @@ def valid_ip(ip_nbr):
         return True  # IP address is properly formed
     else:
         return False  # IP address is malformed
-
-
-# Function to print message on console
-def console_message(msg='', severity=3, verbosity=2):
-    if not msg:  # To send a blank line to console, call function with no msg
-        print('')
-        return ()
-    prog_name = '{' + sys.argv[0] + '}'
-    if severity == ERRO:
-        print(timestamp() + " [ERRO] " + msg + " " + prog_name)
-    elif severity == WARN and verbosity > 0:
-        print(timestamp() + " [WARN] " + msg + " " + prog_name)
-    elif severity == INFO and verbosity > 1:
-        print(timestamp() + " [INFO] " + msg + " " + prog_name)
-    elif verbosity > 1:
-        print(msg)
-
-
-# Function to write status to both console and log file
-def echo_stat(fname, loc_msg, severity=3):
-    console_message(loc_msg, severity,)
-    with open(fname, 'a') as f:
-        f.write("[" + str(datetime.now()) + "] " + loc_msg + "\n")
 
 
 def get_interface_devices():
