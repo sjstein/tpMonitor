@@ -85,8 +85,15 @@ else:
 log.info('')
 # Set up socket for messages
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.settimeout(10)  # Set timeout for no response from server
-s.connect((server_addr, PORT))
+err = s.connect_ex((server_addr, PORT))
+while err != 0:
+    try:
+        log.warn(f'Unable to connect to server (err: {err}). Delaying before retry.')
+        err = s.connect_ex((server_addr, PORT))
+        time.sleep(10)
+    except KeyboardInterrupt:
+        log.warn('Program termination via user interrupt.')
+        exit(-1)
 
 # Main Loop
 while True:
@@ -122,6 +129,18 @@ while True:
             exit(0)
         time.sleep(archive_freq)
         accum_time += archive_freq
+
+    except ConnectionError as err:
+        log.warn(f'Problem connecting to server: {err}, attempting reconnect (ctrl-c to abort program).')
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        while err != 0:
+            try:
+                log.warn(f'Unable to connect to server (err: {err}). Delaying before retry.')
+                err = s.connect_ex((server_addr, PORT))
+                time.sleep(10)
+            except KeyboardInterrupt:
+                log.warn('Program termination via user interrupt.')
+                exit(-1)
 
     except socket.timeout:
         log.warn('Timeout waiting for server response.')
