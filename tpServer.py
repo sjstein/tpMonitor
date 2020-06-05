@@ -50,11 +50,11 @@ if HOST is None:
 
 
 # Client handler - meant to be threaded
-def threaded_client(conn, addr):
+def threaded_client(conn, addr, shutdown):
     timeout = 2  # Counter for back-off / retry
     tname = threading.current_thread().name
     msg_head = '|' + str(tname) + '| '  # Create message header with thread ID
-    while True:
+    while not shutdown.is_set():
         try:
             data = conn.recv(160)
 
@@ -178,18 +178,21 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     time.sleep(5)
 
     # Main loop
+    shutdown_event = threading.Event()
     while True:
         try:
             log.info('|SUPR| waiting for new client connection...', fname)
             connection, address = s.accept()  # Wait for connection request from client
             log.info('|SUPR| Connection accepted from : ' + str(address), fname)
-            t = threading.Thread(target=threaded_client, args=(connection, address), name='T' + str(tid).zfill(3),
-                                 daemon=True)
+            t = threading.Thread(target=threaded_client, args=(connection, address, shutdown_event),
+                                 name='T' + str(tid).zfill(3))
             t.start()
             tid += 1
             if tid > MAXTID:
                 tid = 0
             log.info('|SUPR| Current number of client threads : {0}'.format(str(threading.activeCount() - 1)), fname)
         except KeyboardInterrupt:
-            log.warn('|SUPR| Server terminated via user input')
+            log.warn('|SUPR| Server halting due to user intervention.')
+            log.warn(f'|SUPR| Stopping {threading.activeCount()-1} child thread(s).')
+            shutdown_event.set()
             exit(0)

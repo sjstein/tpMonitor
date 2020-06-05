@@ -33,6 +33,16 @@ MSG_READ_ALL = b'r all'
 MSG_DISCONNECT = b'discon'
 
 
+def retry_connect(e=0, saddr=None, sport=None):
+    while e != 0:
+        try:
+            log.warn(f'Unable to connect to server (err: {e}). Delaying before retry.')
+            e = s.connect_ex((saddr, sport))
+            time.sleep(10)
+        except KeyboardInterrupt:
+            log.warn('Program termination via user interrupt.')
+            exit(-1)
+
 # Set up argument parser
 parser = argparse.ArgumentParser(description='Python script to query a remote server for temperature and pressure\
  data, and optionally write that data to a text file.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -48,9 +58,10 @@ parser.add_argument('-v', '--verbosity', help='Verbosity level 0 (silent) to 3 (
 # Read arguments passed on command line
 args = parser.parse_args()
 fname = ''  # filename to log to
+# create logging methods based on verbosity level
+log = TpLogger(args.verbosity)
 
 # Parse command line arguments
-log = TpLogger(args.verbosity)
 server_addr = args.serverIP  # Server IP  - not optional
 
 if not (valid_ip(server_addr)):
@@ -86,14 +97,8 @@ log.info('')
 # Set up socket for messages
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 err = s.connect_ex((server_addr, PORT))
-while err != 0:
-    try:
-        log.warn(f'Unable to connect to server (err: {err}). Delaying before retry.')
-        err = s.connect_ex((server_addr, PORT))
-        time.sleep(10)
-    except KeyboardInterrupt:
-        log.warn('Program termination via user interrupt.')
-        exit(-1)
+if err != 0:
+    retry_connect(err, server_addr, PORT)
 
 # Main Loop
 while True:
@@ -130,17 +135,11 @@ while True:
         time.sleep(archive_freq)
         accum_time += archive_freq
 
-    except ConnectionError as err:
-        log.warn(f'Problem connecting to server: {err}, attempting reconnect (ctrl-c to abort program).')
+    except ConnectionError as exc:
+        log.warn(f'Problem connecting to server: {exc}, attempting reconnect (ctrl-c to abort program).')
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        while err != 0:
-            try:
-                log.warn(f'Unable to connect to server (err: {err}). Delaying before retry.')
-                err = s.connect_ex((server_addr, PORT))
-                time.sleep(10)
-            except KeyboardInterrupt:
-                log.warn('Program termination via user interrupt.')
-                exit(-1)
+        err = exc.errno
+        retry_connect(err, server_addr, PORT)
 
     except socket.timeout:
         log.warn('Timeout waiting for server response.')
