@@ -1,8 +1,9 @@
 from datetime import datetime
+import argparse
 import re
 import subprocess
 import sys
-import argparse
+import time
 
 time_shortform = '%Y%m%d %H:%M:%S'
 time_longform = '%Y%m%d %H:%M:%S.%f'
@@ -42,6 +43,19 @@ class IntRange:
             return argparse.ArgumentTypeError(f'Must be an integer <= {self.imax}')
         else:
             return argparse.ArgumentTypeError('Must be an integer')
+
+
+def retry_connect(logobj, sock, saddr=None, sport=None):
+    e = sock.connect_ex((saddr, sport))
+    while e != 0:
+        try:
+            logobj.warn(f'Unable to connect to server (err: {e}). Delaying before retry.')
+            time.sleep(10)
+            e = sock.connect_ex((saddr, sport))
+
+        except KeyboardInterrupt:
+            logobj.warn('Program termination via user interrupt.')
+            exit(-1)
 
 
 class TpLogger:

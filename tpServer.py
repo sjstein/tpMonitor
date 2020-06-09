@@ -50,18 +50,18 @@ if HOST is None:
 
 
 # Client handler - meant to be threaded
-def threaded_client(conn, addr):
-    timeout = 2     # Counter for back-off / retry
+def threaded_client(conn, addr, shutdown):
+    timeout = 2  # Counter for back-off / retry
     tname = threading.current_thread().name
-    msg_head = '|' + str(tname) + '| '    # Create message header with thread ID
-    while True:
+    msg_head = '|' + str(tname) + '| '  # Create message header with thread ID
+    while not shutdown.is_set():
         try:
             data = conn.recv(160)
 
         except OSError as msg:
             # This exception will cover various socket errors such as a broken pipe (client disconnect)
             log.erro(msg_head + 'Unexpected error (' + str(msg) + ') connection closed from client : ' +
-                      str(addr), fname)
+                     str(addr), fname)
             conn.close()
             return -1
 
@@ -72,7 +72,7 @@ def threaded_client(conn, addr):
                     pres = sensor.pressure()  # mbar (no arguments)
                     temp = sensor.temperature()  # degrees C (no arguments)
                     dept = sensor.depth()  # Saltwater depth (m)
-                    data = str(round(pres,3)) + ',' + str(round(temp,3)) + ',' + str(round(dept,3))
+                    data = str(round(pres, 3)) + ',' + str(round(temp, 3)) + ',' + str(round(dept, 3))
                     log.info(msg_head + 'Server sent: ' + data, fname)
                     conn.send(data.encode())
                     timeout = 2  # Reset retry counter
@@ -88,7 +88,7 @@ def threaded_client(conn, addr):
             except OSError as msg:
                 # This exception will cover various socket errors such as a broken pipe (client disconnect)
                 log.erro(msg_head + 'Unexpected error (' + str(msg) + ') connection closed from client : '
-                          + str(addr), fname)
+                         + str(addr), fname)
                 conn.close()
                 return -1
 
@@ -100,15 +100,15 @@ def threaded_client(conn, addr):
 
         else:
             try:
-                log.warn(msg_head + 'Unknown command received from client : ' + str(addr) + ' [' + \
-                          data.decode('utf-8') + ']', fname)
+                log.warn(msg_head + 'Unknown command received from client : ' + str(addr) + ' [' +
+                         data.decode('utf-8') + ']', fname)
                 response = 'CMD_UNKNOWN : ' + data.decode('utf-8')
                 conn.send(response.encode())
 
             except OSError as msg:
                 # This exception will cover various socket errors such as a broken pipe (client disconnect)
                 log.erro(msg_head + 'Unexpected error (' + str(msg) + ') connection closed from client : ' +
-                          str(addr), fname)
+                         str(addr), fname)
                 conn.close()
                 return -1
 
@@ -117,9 +117,9 @@ def threaded_client(conn, addr):
 
 MSG_READ_ALL = 'r all'
 MSG_DISCONNECT = 'discon'
-PORT = 5005     # Server port
-MAXTID = 999   # Maximum TID
-tid = 0         # Thread ID number
+PORT = 5005  # Server port
+MAXTID = 999  # Maximum TID
+tid = 0  # Thread ID number
 
 # Open port to accept remote requests
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -178,13 +178,21 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     time.sleep(5)
 
     # Main loop
+    shutdown_event = threading.Event()
     while True:
-        log.info('|SUPR| waiting for new client connection...', fname)
-        connection, address = s.accept()     # Wait for connection request from client
-        log.info('|SUPR| Connection accepted from : ' + str(address), fname)
-        t = threading.Thread(target=threaded_client, args=(connection, address),name='T' + str(tid).zfill(3))
-        t.start()
-        tid = tid + 1
-        if tid > MAXTID:
-            tid = 0
-        log.info('|SUPR| Current number of client threads : {0}'.format(str(threading.activeCount() - 1)), fname)
+        try:
+            log.info('|SUPR| waiting for new client connection...', fname)
+            connection, address = s.accept()  # Wait for connection request from client
+            log.info('|SUPR| Connection accepted from : ' + str(address), fname)
+            t = threading.Thread(target=threaded_client, args=(connection, address, shutdown_event),
+                                 name='T' + str(tid).zfill(3))
+            t.start()
+            tid += 1
+            if tid > MAXTID:
+                tid = 0
+            log.info('|SUPR| Current number of client threads : {0}'.format(str(threading.activeCount() - 1)), fname)
+        except KeyboardInterrupt:
+            log.warn('|SUPR| Server halting due to user intervention.')
+            log.warn(f'|SUPR| Stopping {threading.activeCount()-1} child thread(s).')
+            shutdown_event.set()
+            exit(0)

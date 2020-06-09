@@ -4,7 +4,7 @@ import time
 import sys
 
 # Project-locals
-from tpUtilities import valid_ip, IntRange
+from tpUtilities import valid_ip, IntRange, retry_connect
 from tpUtilities import V_NONE, V_MED, V_HIGH
 from tpUtilities import TpLogger
 
@@ -33,6 +33,18 @@ MSG_READ_ALL = b'r all'
 MSG_DISCONNECT = b'discon'
 
 
+# def retry_connect(clog, saddr=None, sport=None):
+#     e = s.connect_ex((saddr, sport))
+#     while e != 0:
+#         try:
+#             clog.warn(f'Unable to connect to server (err: {e}). Delaying before retry.')
+#             time.sleep(10)
+#             e = s.connect_ex((saddr, sport))
+#
+#         except KeyboardInterrupt:
+#             clog.warn('Program termination via user interrupt.')
+#             exit(-1)
+
 # Set up argument parser
 parser = argparse.ArgumentParser(description='Python script to query a remote server for temperature and pressure\
  data, and optionally write that data to a text file.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -48,9 +60,10 @@ parser.add_argument('-v', '--verbosity', help='Verbosity level 0 (silent) to 3 (
 # Read arguments passed on command line
 args = parser.parse_args()
 fname = ''  # filename to log to
+# create logging methods based on verbosity level
+log = TpLogger(args.verbosity)
 
 # Parse command line arguments
-log = TpLogger(args.verbosity)
 server_addr = args.serverIP  # Server IP  - not optional
 
 if not (valid_ip(server_addr)):
@@ -85,8 +98,7 @@ else:
 log.info('')
 # Set up socket for messages
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.settimeout(10)  # Set timeout for no response from server
-s.connect((server_addr, PORT))
+retry_connect(logobj=log, sock=s, saddr=server_addr, sport=PORT)
 
 # Main Loop
 while True:
@@ -122,6 +134,12 @@ while True:
             exit(0)
         time.sleep(archive_freq)
         accum_time += archive_freq
+
+    except ConnectionError as exc:
+        log.warn(f'Problem connecting to server: {exc}')
+        s.close()
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        retry_connect(logobj=log, sock=s, saddr=server_addr, sport=PORT)
 
     except socket.timeout:
         log.warn('Timeout waiting for server response.')
