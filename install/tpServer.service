@@ -1,0 +1,13 @@
+[Unit]
+Description=Server task to send temperature and depth data
+After=multi-user.target
+
+[Service]
+ExecStart=/usr/bin/python3 -u tpServer.py
+WorkingDirectory=/etc/systemd/user/tpServer
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
