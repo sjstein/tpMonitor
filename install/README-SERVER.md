@@ -1,7 +1,12 @@
-###### Installing tpServer as a system process.
+### Installing tpServer as a system process.
+Requires the following files:
+- **tpServer.py**
+- **tpUtilities.py** 
+- **ms5837.py**
+- **mock_ms5837.py** (optional - for local debugging support)
 
 As root, perform the following steps:
-- Install tpServer.py, tpUtilities.py, and ms5837.py in `/etc/systemd/user/tpServer/`
+- Install **tpServer.py**, **tpUtilities.py**, and **ms5837.py** in `/etc/systemd/user/tpServer/`
   (This is the accepted location for user service executables)
 
 - Install the file **tpServer.service** in the following directory:
@@ -26,5 +31,7 @@ The output should look similar to:
 >           └─493 /usr/bin/python3 -u tpServer.py
 
 
-A `systemctl` reference can be found here: 
-https://www.digitalocean.com/community/tutorials/how-to-use-systemctl-to-manage-systemd-services-and-units 
+A `systemctl` reference can be found [here]: 
+
+
+[here]: https://www.digitalocean.com/community/tutorials/how-to-use-systemctl-to-manage-systemd-services-and-units
