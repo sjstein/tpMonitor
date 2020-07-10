@@ -9,11 +9,11 @@ import threading
 import time
 
 # Project-locals:
-from tpUtilities import get_interface_devices
-from tpUtilities import V_HIGH
-from tpUtilities import TpLogger
+from aspLibs.aspUtilities import get_interface_devices
+from aspLibs.aspUtilities import V_HIGH
+from aspLibs.aspUtilities import AspLogger
 
-log = TpLogger(V_HIGH)
+log = AspLogger(V_HIGH)
 
 parser = ArgumentParser()
 parser.add_argument('--debug',
@@ -33,7 +33,7 @@ if args.debug:
     log.disp(' USING MOCK SENSOR DATA \n')
     import mock_ms5837 as ms5837
 else:
-    import ms5837
+    import blueRobotics.ms5837 as ms5837
 
 # Retrieve all interface device infos:
 interface_info = get_interface_devices()

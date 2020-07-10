@@ -4,9 +4,9 @@ import time
 import sys
 
 # Project-locals
-from tpUtilities import valid_ip, IntRange, retry_connect
-from tpUtilities import V_NONE, V_MED, V_HIGH
-from tpUtilities import TpLogger
+from aspLibs.aspUtilities import valid_ip, IntRange, retry_connect
+from aspLibs.aspUtilities import V_NONE, V_MED, V_HIGH
+from aspLibs.aspUtilities import AspLogger
 
 
 # Variable declaration section
@@ -61,7 +61,7 @@ parser.add_argument('-v', '--verbosity', help='Verbosity level 0 (silent) to 3 (
 args = parser.parse_args()
 fname = ''  # filename to log to
 # create logging methods based on verbosity level
-log = TpLogger(args.verbosity)
+log = AspLogger(args.verbosity)
 
 # Parse command line arguments
 server_addr = args.serverIP  # Server IP  - not optional

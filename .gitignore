@@ -1,8 +1,7 @@
 # Python runtime cruft:
 __pycache__/
 
-# Locally linked file:
-ms5837.py
+.idea
 
 # Log files:
 *.log
