@@ -1,0 +1,6 @@
+[submodule "aspLibs"]
+	path = aspLibs
+	url = https://github.com/sjstein/aspLibs
+[submodule "blueRobotics"]
+	path = blueRobotics
+	url = https://github.com/sjstein/ms5837-python
