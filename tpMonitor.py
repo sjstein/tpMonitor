@@ -1,11 +1,15 @@
 import argparse
+import os
 import socket
-import time
 import sys
+import time
+
+from datetime import datetime
 
 # Project-locals
 from aspLibs.aspUtilities import valid_ip, IntRange, retry_connect
 from aspLibs.aspUtilities import V_NONE, V_MED, V_HIGH
+from aspLibs.aspUtilities import DATA_DIR
 from aspLibs.aspUtilities import AspLogger
 
 
@@ -32,26 +36,17 @@ PORT = 5005  # TCP port for connection to server
 MSG_READ_ALL = b'r all'
 MSG_DISCONNECT = b'discon'
 
-
-# def retry_connect(clog, saddr=None, sport=None):
-#     e = s.connect_ex((saddr, sport))
-#     while e != 0:
-#         try:
-#             clog.warn(f'Unable to connect to server (err: {e}). Delaying before retry.')
-#             time.sleep(10)
-#             e = s.connect_ex((saddr, sport))
-#
-#         except KeyboardInterrupt:
-#             clog.warn('Program termination via user interrupt.')
-#             exit(-1)
+FILE_EXT = 'txt'
 
 # Set up argument parser
+# noinspection PyTypeChecker
 parser = argparse.ArgumentParser(description='Python script to query a remote server for temperature and pressure\
  data, and optionally write that data to a text file.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('serverIP', help='IP Number of server.')
-parser.add_argument('-l', '--log', help='File name for logging (default is NO logging).')
 parser.add_argument('-f', '--freq', help='Frequency (in seconds) to read data.',
-                    type=IntRange(1,), default=archive_freq)
+                    type=IntRange(1, ), default=archive_freq)
+parser.add_argument('-l', '--log', help=f'File name for logging (extension \'.{FILE_EXT}\' is added).')
+
 parser.add_argument('-t', '--time', help='Time (in minutes) to run (-1 denotes run forever, \
 0 denotes run for one iteration).', type=IntRange(-1,), default=run_time)
 parser.add_argument('-v', '--verbosity', help='Verbosity level 0 (silent) to 3 (most verbose).',
@@ -79,14 +74,27 @@ if args.time is not None:  # Run duration (minutes) - optional (default defined 
     run_time = args.time
 
 if logging:
+    now = datetime.now()
+    datestr = now.strftime('%Y%m%d')
+    # Check if data subdirectories exists, and if not create
+    if not os.path.isdir(DATA_DIR):
+        os.mkdir(DATA_DIR)
+    data_path = f'{DATA_DIR}/{datestr}'
+    if not os.path.isdir(data_path):
+        os.mkdir(data_path)
+    fqname = f'{data_path}/{fname}.{FILE_EXT}'
+    idx = 1
+    while os.path.isfile(fqname):
+        fqname = f'{data_path}/{fname}_{idx}.{FILE_EXT}'
+        idx += 1
     # Open the file and write the header
-    f = open(fname, 'a')
+    f = open(fqname, 'a')
     f.write('Date Time,Press(mBar),Temp(c),Depth(m)\n')
 
 # Write initial parameters to console
 log.info('Acquisition started with following parameters:')
 if logging:
-    log.info('     Saving to file     : ' + fname)
+    log.info('     Saving to file     : ' + fqname)
 log.info('     Server IP#         : ' + server_addr)
 log.info('     Logging frequency  : ' + str(archive_freq) + ' seconds')
 if run_time == -1:
@@ -114,7 +122,7 @@ while True:
 
         if logging:
             data_line = f'{log.timestamp()},{data.decode("utf-8")}'
-            f = open(fname, 'a')
+            f = open(fqname, 'a')
             f.write(data_line + '\n')
             f.close()
         if run_time < 0:
