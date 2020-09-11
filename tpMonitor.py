@@ -46,7 +46,8 @@ parser.add_argument('serverIP', help='IP Number of server.')
 parser.add_argument('-f', '--freq', help='Frequency (in seconds) to read data.',
                     type=IntRange(1, ), default=archive_freq)
 parser.add_argument('-l', '--log', help=f'File name for logging (extension \'.{FILE_EXT}\' is added).')
-
+parser.add_argument('-m', '--monitor', help='Display only depth information on console without logging',
+                    action='store_true')
 parser.add_argument('-t', '--time', help='Time (in minutes) to run (-1 denotes run forever, \
 0 denotes run for one iteration).', type=IntRange(-1,), default=run_time)
 parser.add_argument('-v', '--verbosity', help='Verbosity level 0 (silent) to 3 (most verbose).',
@@ -66,12 +67,14 @@ if not (valid_ip(server_addr)):
     exit(-1)
 if args.log is not None:  # Log filename - optional
     fname = args.log
-    # Check for valid filename?
-    logging = True
+    logging = True if not args.monitor else False   # Logging is not valid for monitor mode
 if args.freq is not None:  # Read frequency (seconds) - optional (default defined above)
     archive_freq = args.freq
 if args.time is not None:  # Run duration (minutes) - optional (default defined above)
     run_time = args.time
+if args.monitor:
+    run_time = -1
+    archive_freq = 1
 
 if logging:
     now = datetime.now()
@@ -95,14 +98,16 @@ if logging:
 log.info('Acquisition started with following parameters:')
 if logging:
     log.info('     Saving to file     : ' + fqname)
-log.info('     Server IP#         : ' + server_addr)
-log.info('     Logging frequency  : ' + str(archive_freq) + ' seconds')
+log.info('     Server IP#     : ' + server_addr)
+log.info('     Read frequency : ' + str(archive_freq) + ' second(s)')
 if run_time == -1:
     log.info('     Acquiring data until stopped via user interrupt (ctrl-c)')
 elif run_time == 0:
     log.info('     Acquiring data for one iteration')
 else:
     log.info('     Acquiring data for : ' + str(run_time) + ' minutes')
+if args.monitor:
+    log.warn('     RUNNING IN MONITOR MODE')
 log.info('')
 # Set up socket for messages
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -125,23 +130,30 @@ while True:
             f = open(fqname, 'a')
             f.write(data_line + '\n')
             f.close()
-        if run_time < 0:
-            log.info('Run time       : ' + str(accum_time) + ' seconds')
-        else:
-            log.info('Run time       : ' + str(accum_time) + ' of ' + str(int(run_time) * 60) + ' seconds')
-        log.info('Current depth  : ' + '{0:.2f}'.format(float(depth_meters)) + ' meters (' + '{0:.2f}'.format(
-            depth_feet) + ' ft)')
-        log.info('Current temp   : ' + '{0:.2f}'.format(float(temp_c)) + ' deg C (' + '{0:.2f}'.format(
-            temp_f) + ' deg F)')
-        log.info('')
 
-        if (run_time > 0) and (accum_time >= int(run_time) * 60) or run_time == 0:
-            log.info('Acquisition complete.')
-            s.sendall(MSG_DISCONNECT)
-            s.close()
-            exit(0)
-        time.sleep(archive_freq)
-        accum_time += archive_freq
+        if args.monitor:
+            print(f'Depth = {depth_feet:.2f}\'')
+            time.sleep(1)
+            # Continue until user interrupt
+
+        else:
+            if run_time < 0:
+                log.info('Run time       : ' + str(accum_time) + ' seconds')
+            else:
+                log.info('Run time       : ' + str(accum_time) + ' of ' + str(int(run_time) * 60) + ' seconds')
+            log.info('Current depth  : ' + '{0:.2f}'.format(float(depth_meters)) + ' meters (' + '{0:.2f}'.format(
+                depth_feet) + ' ft)')
+            log.info('Current temp   : ' + '{0:.2f}'.format(float(temp_c)) + ' deg C (' + '{0:.2f}'.format(
+                temp_f) + ' deg F)')
+            log.info('')
+
+            if (run_time > 0) and (accum_time >= int(run_time) * 60) or run_time == 0:
+                log.info('Acquisition complete.')
+                s.sendall(MSG_DISCONNECT)
+                s.close()
+                exit(0)
+            time.sleep(archive_freq)
+            accum_time += archive_freq
 
     except ConnectionError as exc:
         log.warn(f'Problem connecting to server: {exc}')
